@@ -26,12 +26,19 @@ Basic architecture`构建
 
 要使用 gRPC 服务， 一些原型定义
 
-```proto
+```protobuf
 enum ReservationStatus {
   UNKNOWN =0;
   PENDING =1;
   CONFIRMED =2; // 确认
   BLOCKED =3;
+}
+
+enum ReservationUpdateType {
+  UNKNOWN =0;
+  CREATE =1;
+  UPDATE =2;
+  DELETE =3;
 }
 
 message Reservation {
@@ -97,38 +104,85 @@ message QueryRequest {
   google.protobuf.Timestamp end = 5;
 }
 
+message ListenRequest {}
+message ListenResponse {
+  Reservation reservation =1;
+}
+
 service ReservationService {
-  rpc reserve(ReserveRequest) return (ReserveRequest);
-  rpc confirm(ConfirmRequest) return (ConfirmResponse);
-  rpc update(UpdateRequest) return (UpdateResponse);
-  rpc cancel(CancelRequest) return (CancelResponse);
-  rpc get(GetRequest) return (GetResponse);
-  rpc Query(QueryRequest) return (stream Reservation);
+  rpc reserve(ReserveRequest) returns (ReserveRequest);
+  rpc confirm(ConfirmRequest) returns (ConfirmResponse);
+  rpc update(UpdateRequest) returns (UpdateResponse);
+  rpc cancel(CancelRequest) returns (CancelResponse);
+  rpc get(GetRequest) returns (GetResponse);
+  rpc Query(QueryRequest) returns (stream Reservation);
+  rpc listen(listenRequest) returns
 }
 ```
 
 ## Database schema
 
 We use postgres as the database. Below is the -- 决定使用 postgres 数据库
-定义:
-schema:
 
+schema`定义:
 ```sql
 CREATE SCHEMA rsvp;
-CREATE TYPE revp.reservation_status AS ENUM
-("unknown","pending","confirmed","blocked",)
+CREATE TYPE revp.reservation_status AS ENUM("unknown","pending","confirmed","blocked",);
+CREATE TYPE revp.reservation_update_type AS ENUM("unknown","create","update","delete");
 
-CREATE TABLE reservation {
+CREATE TABLE rsvp.reservation {
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id varchar(64) NOT NULL,
+  user_id VARCHAR(64) NOT NULL,
   status rsvp.reservation_status NOT NULL,
   DEFAULT 'pending',
 
-  resource_id varchar(64) NOT NULL,
-  start timestamptz NOT NULL,
-  end timestamptz NOT NULL,
-  note text
-}
+  resource_id VARCHAR(64) NOT NULL,
+  timespan TSTZRANGE NOT NULL,
+
+  note TEXT,
+
+  CONSTRAINT raservation_pkey PRIMARY KEY (id),
+  CONSTRAINT raservation_conflict EXCLUDE USING gist, (resource_id WITH=, timespan WITH && )
+};
+
+CREATE INDEX reservation_resource_id_idx ON revp.reservation (reservation_id);
+CREATE INDEX reservation_user_id_idx ON revp.reservation (user_id);
+
+// 如果用户id为空，则查找during中资源的所有预定
+// 如果资源id为空，则查找during中用户的所有预定
+// 如果两者都为空，则查找during中的所有预定
+// 如果两者都设置了，则查during中的所有预定和用户
+CREATE OR PEPLACE FUNCTION rsvp.query(uid text, rid text, during: TSTZRANGE)
+RETURNS TABLE rsvp.reservation AS $$ $$ LANGUAGE plpgsql;
+
+-- reservation change queue
+CREATE TABLE rsvp.reservation_changes(
+  id SERIAL NOT NULL,
+  resevation_id uuid NOT NULL,
+  op rsvp.reservation_update_type NOT NULL,
+)
+
+-- tergeer`触发 for add/update/delete a reservation
+CREATE OR REPLACE FUNCTION rsvp.reservation_trigger() RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    INSERT INTO rsvp.reservation_changes(reservation_id, op) VALUE(NEW.id, 'create');
+  ELSE TG_OP = 'UPDATE' THEN
+    -- 如果OLD.status 不等于 NEW.status，改变 reservation_changes
+    IF OLD.status <> NEW.status THEN
+      INSERT INTO rsvp.reservation_changes(reservation_id, op)
+      VALUE(NEW.id, 'update');
+  ELSE TG_OP = 'DELETE' THEN
+    INSER INTO rsvp.reservation_changes(reservation, op) VALUES(OLD.id, 'delete');
+  END IF;
+
+  NOTIFY reservation_update;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER rsvp.reservation_trigger
+  AFTER INSERT OR UPDATE OR DELETE ON rsvp.reservation FOR EACH ROW EXECUTE PROCEDURE rsvp.reservation_trigger();
 ```
 
 ## Reference-level explanation
