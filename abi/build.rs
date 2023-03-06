@@ -6,7 +6,7 @@ fn main() {
         .compile(&["protos/reservation.proto"], &["protos"])
         .unwrap();
 
-    // fs::remove_file("src/pb/google/protobuf/descriptor.proto").unwrap();
+    fs::remove_file("src/pb/google/protobuf/descriptor.proto").unwrap();
 
     Command::new("cargo").args(&["fmt"]).output().unwrap();
 
