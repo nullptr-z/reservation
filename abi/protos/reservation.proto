@@ -3,6 +3,7 @@ package reservation;
 
 import "google/protobuf/timestamp.proto";
 
+// reservation status for a given time period -- 给定时间段的预订状态
 enum ReservationStatus {
   RESERVATION_STATUS_UNKNOWN =0;
   RESERVATION_STATUS_PENDING =1;
@@ -10,6 +11,7 @@ enum ReservationStatus {
   RESERVATION_STATUS_BLOCKED =3;
 }
 
+// when reservation is update, record the update type -- 预定更新时，记录更新的类型
 enum ReservationUpdateType {
   RESERVATION_UPDATE_TYPE_UNKNOWN =0;
   RESERVATION_UPDATE_TYPE_CREATE =1;
@@ -17,81 +19,151 @@ enum ReservationUpdateType {
   RESERVATION_UPDATE_TYPE_DELETE =3;
 }
 
+// core reservasion object, contains all the information for a reservasion
+// 预定系统核心对象，包换全部信息
+// if ListResponse op is DELETE, onlu id will be populate
+// 如果 ListResponse 选项(op)是`DELETE`, 只会填入ID
 message Reservation {
+  // unique id
+  // if put into ReserveRequest, id should be empty
+  // 如果放入 ReserveRequest，ID应该是空的
   string id = 1;
+  // resource id
   string resource_id = 2;
+
+  // status, used for differentiating purpose
+  // 预留状态，用于区分的作用
   ReservationStatus rtype =3 ;
 
-  // resource reservation window`预留资源窗口
+  // user id
   string user_id = 4;
+  // start time
   google.protobuf.Timestamp start = 5;
+  // end time
   google.protobuf.Timestamp end = 6;
 
   // extra note`额外说明
   string note =7;
 }
 
+// To make a reservation, send a ReserveRequest with Reservation object(id should be empty)
+// 如果进行预定，应该发送一个 ReserveRequest对象（id应该是空的）
 message ReserveRequest {
   Reservation reservation =1;
 }
 
+// Created reservation will be returned in ReserveResponse
+// 创建预定，将会返回在ReserveResponse中
 message ReserveResponse {
   Reservation reservation =1;
 }
 
+// To update a reservation, send an UpdateRequest, only note fields is updateble
+// 要更新Reservation, 发送UpdateRequest请求，只有`note`字段是可以更新的
 message UpdateRequest {
-  string note =1;
+  string note =2;
 }
 
+// Update reservation will be returned in UpdateResponse
+// 更新reservation，将会返回在UpdateResponse中
 message UpdateResponse {
   Reservation reservation =1;
 }
 
+// To change a reservation from pending toconfirmed, send a ConfirmRequest
+// 要将Reservation从待定更为确认,请发送确认请求(ConfirmRequest)
 message ConfirmRequest {
   string id =1;
 }
 
+// Confirmed reservation will be returned in ConfirmResponse
+// 确认的预订将在ConfirmResponse中返回
 message ConfirmResponse{
   Reservation reservation =1;
 }
 
+// To cancel a reservation, send a CancelRequest
+// 要取消Reservation，请发送取消请求(CancelRequest)
 message CancelRequest {
   string id =1;
 }
 
+// Cancel reservation will be returned in CancelResponse
+// 取消的预订将在CancelResponse中返回
 message CancelResponse{
   Reservation reservation =1;
 }
 
+// To get a reservation, send a GetRequest
+// 要请求一个reservation, 请发送GetRequest
 message GetRequest {
   int64 id =1;
 }
 
+// Reservation will be returned in GetResponse
+// 预定将在GetResponse中返回
 message GetResponse{
   Reservation reservation =1;
 }
 
+// To query a reservation, send a QueryRequest
+// 要查询一个预定，请发送QueryRequest
 message QueryRequest {
+  // resource id, if empty, query all resources
+  // 预定资源查询ID, 如果ID为空则查询全部资源
   string resource_id =1;
+
+  // user id, if empty, query all users
+  // 预定用户查询ID，如果ID为空，查询全部用户
   string user_id =2;
-  // use status to filter result. If UNKNOWN, return all reservations --如果用户状态未知，返回他的所有预定
+
+  // use status to filter result. If UNKNOWN, return all reservations
+  // 如果用户状态未知，返回他的所有预定
   ReservationStatus status =3;
+
+  // start time for the reservation query, if 0, use infinty start time
+  // 预定查询的起始时间, 如果为0，使用 infity start time
   google.protobuf.Timestamp start = 4;
+  // end time for the reservation query,if 0, use infinty end time
+  // 预定查询的结束时间,如 果为0，使用 infity end time
   google.protobuf.Timestamp end = 5;
 }
 
+// Client Can listen to reservation update by sending a ListenRequest
+// 客户端可以通过发送 ListenRequest 来监听预订更新
 message ListenRequest {}
+
+// Server will send ListenResponse to client in streaming response
+// 服务器将在流式响应中向客户端发送 ListenResponse
 message ListenResponse {
+  // update type
   ReservationUpdateType op=1;
+  // id for updated reservation
+  // 更新预定的ID
   Reservation reservation =2;
 }
 
+// Reservation service
 service ReservationService {
+  // make a reservation
+  // 构建一个预定
   rpc reserve(ReserveRequest) returns (ReserveRequest);
+  // confirm a pending reservation, if reservation is not pending, do nothing
+  // 确认待定的预定，如果预定不是待定的，什么都不做
   rpc confirm(ConfirmRequest) returns (ConfirmResponse);
+  // update the reservation note
+  // 更新这个预定的注释`note`
   rpc update(UpdateRequest) returns (UpdateResponse);
+  // cancle a reservation
+  // 取消预定
   rpc cancel(CancelRequest) returns (CancelResponse);
+  // get a reservation by id
+  // 根据ID获取预定
   rpc get(GetRequest) returns (GetResponse);
+  // query reservation by resource id, user id, status, start time, end time
+  // 通过资源id、用户id、状态、开始时间、结束时间 查询预约
   rpc Query(QueryRequest) returns (stream Reservation);
+  // an other system could moniton newly added/confirmed/cancelled reservation
+  // 另一个系统可以监控新添加/确认/取消的预订
   rpc listen(ListenRequest) returns (stream Reservation);
 }
