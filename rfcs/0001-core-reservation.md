@@ -125,10 +125,11 @@ service ReservationService {
 We use postgres as the database. Below is the -- 决定使用 postgres 数据库
 
 schema`定义:
+
 ```sql
 CREATE SCHEMA rsvp;
-CREATE TYPE revp.reservation_status AS ENUM("unknown","pending","confirmed","blocked",);
-CREATE TYPE revp.reservation_update_type AS ENUM("unknown","create","update","delete");
+CREATE TYPE rsvp.reservation_status AS ENUM("unknown","pending","confirmed","blocked",);
+CREATE TYPE rsvp.reservation_update_type AS ENUM("unknown","create","update","delete");
 
 CREATE TABLE rsvp.reservation {
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -145,13 +146,13 @@ CREATE TABLE rsvp.reservation {
   CONSTRAINT raservation_conflict EXCLUDE USING gist, (resource_id WITH=, timespan WITH && )
 };
 
-CREATE INDEX reservation_resource_id_idx ON revp.reservation (reservation_id);
-CREATE INDEX reservation_user_id_idx ON revp.reservation (user_id);
+CREATE INDEX reservation_resource_id_idx ON rsvp.reservation (reservation_id);
+CREATE INDEX reservation_user_id_idx ON rsvp.reservation (user_id);
 
-// 如果用户id为空，则查找during中资源的所有预定
-// 如果资源id为空，则查找during中用户的所有预定
-// 如果两者都为空，则查找during中的所有预定
-// 如果两者都设置了，则查during中的所有预定和用户
+// 如果用户id为空，则查找资源的所有预定
+// 如果资源id为空，则查找用户的所有预定
+// 如果两者都为空，则查找所有预定
+// 如果两者都设置了，则查所有预定和用户
 CREATE OR PEPLACE FUNCTION rsvp.query(uid text, rid text, during: TSTZRANGE)
 RETURNS TABLE rsvp.reservation AS $$ $$ LANGUAGE plpgsql;
 
@@ -182,7 +183,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER rsvp.reservation_trigger
-  AFTER INSERT OR UPDATE OR DELETE ON rsvp.reservation FOR EACH ROW EXECUTE PROCEDURE rsvp.reservation_trigger();
+  AFTER INSERT OR UPDATE OR DELETE ON rsvp.reservation
+  FOR EACH ROW EXECUTE PROCEDURE rsvp.reservation_trigger();
 ```
 
 ## Reference-level explanation
