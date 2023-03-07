@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "prost",
  "prost-types",
+ "proto-builder-trait",
  "tonic",
  "tonic-build",
 ]
@@ -610,6 +611,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "379119666929a1afd7a043aa6cf96fa67a6dce9af60c88095a4686dbce4c9c88"
 dependencies = [
  "prost",
+]
+
+[[package]]
+name = "proto-builder-trait"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce05ab55482e3ecf00bfb302bad13e5428b598f2069c71e2b47ddfa299b472f"
+dependencies = [
+ "prost-build",
+ "tonic-build",
 ]
 
 [[package]]
