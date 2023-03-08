@@ -110,11 +110,10 @@ pub struct GetResponse {
     #[prost(message, optional, tag = "1")]
     pub reservation: ::core::option::Option<Reservation>,
 }
-/// To query a reservation, send a QueryRequest
-/// 要查询一个预定，请发送QueryRequest
+/// query reservations user id, resource id, start, end, and status
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryRequest {
+pub struct ReservationQuery {
     /// resource id, if empty, query all resources
     /// 预定资源查询ID, 如果ID为空则查询全部资源
     #[prost(string, tag = "1")]
@@ -135,6 +134,14 @@ pub struct QueryRequest {
     /// 预定查询的结束时间,如 果为0，使用 infity end time
     #[prost(message, optional, tag = "5")]
     pub end: ::core::option::Option<::prost_types::Timestamp>,
+}
+/// To query a reservation, send a QueryRequest
+/// 要查询一个预定，请发送QueryRequest
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryRequest {
+    #[prost(message, optional, tag = "1")]
+    pub query: ::core::option::Option<ReservationQuery>,
 }
 /// Client Can listen to reservation update by sending a ListenRequest
 /// 客户端可以通过发送 ListenRequest 来监听预订更新

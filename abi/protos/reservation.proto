@@ -106,9 +106,8 @@ message GetResponse{
   Reservation reservation =1;
 }
 
-// To query a reservation, send a QueryRequest
-// 要查询一个预定，请发送QueryRequest
-message QueryRequest {
+// query reservations user id, resource id, start, end, and status
+message ReservationQuery{
   // resource id, if empty, query all resources
   // 预定资源查询ID, 如果ID为空则查询全部资源
   string resource_id =1;
@@ -129,6 +128,11 @@ message QueryRequest {
   google.protobuf.Timestamp end = 5;
 }
 
+// To query a reservation, send a QueryRequest
+// 要查询一个预定，请发送QueryRequest
+message QueryRequest {
+  ReservationQuery query=1;
+}
 // Client Can listen to reservation update by sending a ListenRequest
 // 客户端可以通过发送 ListenRequest 来监听预订更新
 message ListenRequest {}
