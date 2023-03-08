@@ -7,7 +7,7 @@
 
 > psql
 
-postgres=# create user zheng with password '**\*\***';
+postgres=# create user zheng with password 'pass';
 CREATE ROLE
 postgres=# create database zheng owner zheng;
 CREATE DATABASE
@@ -32,4 +32,4 @@ current_user: 当前操作的用户
 2. sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt buster-pgdg main" > /etc/apt/sources.list.d/pgdg.list' 创建官方源配置文件
 3. wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - 导入签名
 4. sudo apt update 更新仓库
-5. apt-get install postgresql-15 -y 安装
+5. sudo 安装

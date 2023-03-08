@@ -146,7 +146,7 @@ CREATE TABLE rsvp.reservation {
   CONSTRAINT raservation_conflict EXCLUDE USING gist, (resource_id WITH=, timespan WITH && )
 };
 
-CREATE INDEX reservation_resource_id_idx ON rsvp.reservation (reservation_id);
+CREATE INDEX reservation_resource_id_idx ON rsvp.reservation (resource_id);
 CREATE INDEX reservation_user_id_idx ON rsvp.reservation (user_id);
 
 // 如果用户id为空，则查找资源的所有预定
@@ -167,11 +167,11 @@ CREATE TABLE rsvp.reservation_changes(
 CREATE OR REPLACE FUNCTION rsvp.reservation_trigger() RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    INSERT INTO rsvp.reservation_changes(reservation_id, op) VALUE(NEW.id, 'create');
+    INSERT INTO rsvp.reservation_changes(resource_id, op) VALUE(NEW.id, 'create');
   ELSE TG_OP = 'UPDATE' THEN
     -- 如果OLD.status 不等于 NEW.status，改变 reservation_changes
     IF OLD.status <> NEW.status THEN
-      INSERT INTO rsvp.reservation_changes(reservation_id, op)
+      INSERT INTO rsvp.reservation_changes(resource_id, op)
       VALUE(NEW.id, 'update');
   ELSE TG_OP = 'DELETE' THEN
     INSER INTO rsvp.reservation_changes(reservation, op) VALUES(OLD.id, 'delete');
