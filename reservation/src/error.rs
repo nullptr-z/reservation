@@ -8,6 +8,9 @@ pub enum ReservationError {
     // Redaction(String),
     // #[error("invalid header (expected {expected:?}, found {found:?})")]
     // InvalidHeader { expected: String, found: String },
+    //
+    #[error("Invalid start or end time for the reservation")]
+    InvalidTime,
     #[error("unknown error")]
     Unknown,
 }
