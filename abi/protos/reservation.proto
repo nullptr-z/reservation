@@ -33,7 +33,7 @@ message Reservation {
 
   // status, used for differentiating purpose
   // 预留状态，用于区分的作用
-  ReservationStatus rtype =3 ;
+  ReservationStatus status =3 ;
 
   // user id
   string user_id = 4;

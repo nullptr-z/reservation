@@ -8,7 +8,8 @@ pub enum ReservationError {
     // Redaction(String),
     // #[error("invalid header (expected {expected:?}, found {found:?})")]
     // InvalidHeader { expected: String, found: String },
-    //
+    #[error("DataBase errr")]
+    DbError(#[from] sqlx::Error),
     #[error("Invalid start or end time for the reservation")]
     InvalidTime,
     #[error("unknown error")]
