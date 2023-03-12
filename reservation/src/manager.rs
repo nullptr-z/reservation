@@ -1,25 +1,21 @@
-use crate::{error, ReservationId, ReservationManager, Rsvp};
-use abi::ReservationStatus;
-use chrono::{NaiveDateTime, Utc};
-use sqlx::{postgres::types::PgRange, types::Uuid, Row};
+use crate::{ReservationId, ReservationManager, Rsvp};
+use abi::{Error, ReservationStatus};
+use chrono::NaiveDateTime;
+use sqlx::{types::Uuid, Row};
 
 #[async_trait::async_trait]
 impl Rsvp for ReservationManager {
-    async fn reserve(
-        &self,
-        mut rsvp: abi::Reservation,
-    ) -> Result<abi::Reservation, error::ReservationError> {
+    async fn reserve(&self, mut rsvp: abi::Reservation) -> Result<abi::Reservation, Error> {
         if rsvp.start.is_none() || rsvp.end.is_none() {
-            return Err(error::ReservationError::InvalidTime);
+            return Err(Error::InvalidTime);
         };
 
         let start: NaiveDateTime =
-            NaiveDateTime::from_timestamp_opt(rsvp.start.clone().expect("22").seconds, 0)
-                .expect("33");
+            NaiveDateTime::from_timestamp_opt(rsvp.start.clone().unwrap().seconds, 0).unwrap();
         let end: NaiveDateTime =
             NaiveDateTime::from_timestamp_opt(rsvp.end.clone().unwrap().seconds, 0).unwrap();
         if end <= start {
-            return Err(error::ReservationError::InvalidTime);
+            return Err(Error::InvalidTime);
         };
         let timespan = format!("[{}, {})", start, end);
 
@@ -42,32 +38,23 @@ impl Rsvp for ReservationManager {
         Ok(rsvp)
     }
 
-    async fn update_status(
-        &self,
-        id: ReservationId,
-    ) -> Result<abi::Reservation, error::ReservationError> {
+    async fn update_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
         todo!()
     }
 
-    async fn update_note(
-        &self,
-        id: ReservationId,
-    ) -> Result<abi::Reservation, error::ReservationError> {
+    async fn update_note(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
         todo!()
     }
 
-    async fn delete(&self, id: ReservationId) -> Result<(), error::ReservationError> {
+    async fn delete(&self, id: ReservationId) -> Result<(), Error> {
         todo!()
     }
 
-    async fn get(&self, id: ReservationId) -> Result<abi::Reservation, error::ReservationError> {
+    async fn get(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
         todo!()
     }
 
-    async fn query(
-        &self,
-        query: abi::ReservationQuery,
-    ) -> Result<Vec<abi::Reservation>, error::ReservationError> {
+    async fn query(&self, query: abi::ReservationQuery) -> Result<Vec<abi::Reservation>, Error> {
         todo!()
     }
 }
@@ -81,21 +68,17 @@ impl ReservationManager {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use abi::convert_str_to_timestamp;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_should_work_for_volid_window() {
         let manager = ReservationManager::new(migrated_pool.clone());
-        let rsvp = abi::Reservation {
-            id: "".to_string(),
-            user_id: "zz id".to_string(),
-            resource_id: "ocean-view-room-713".to_string(),
-            start: Some(convert_str_to_timestamp(&"2023-03-10 17:20:35")),
-            end: Some(convert_str_to_timestamp(&"2023-03-12 17:20:35")),
-            // end: NaiveDateTime::parse_from_str("2023-03-11 16:53:56", &fmt).unwrap(),
-            note: "我明天晚上7点入住".to_string(),
-            status: abi::ReservationStatus::Pending as i32,
-        };
+        let rsvp = abi::Reservation::new_pending(
+            "zz id",
+            "ocean-view-room-713",
+            "2023-03-10 17:20:35",
+            "2023-03-12 17:20:35",
+            "i'm today evening to check in",
+        );
 
         let rsvp = manager.reserve(rsvp).await.expect("run reserve error");
         assert_ne!(rsvp.id, "");
