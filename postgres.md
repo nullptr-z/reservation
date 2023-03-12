@@ -20,6 +20,10 @@ postgres=# \q
 zheng=>
 ```
 
+## 赋予超级用户权限
+
+ALTER USER zheng WITH SUPERUSER;
+
 ## select session_user, current_user;
 
 session_user: 链接进数据库的用户

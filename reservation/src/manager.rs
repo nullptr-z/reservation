@@ -1,8 +1,8 @@
 use crate::{error, ReservationId, ReservationManager, Rsvp};
-use chrono::NaiveDateTime;
-use sqlx::{postgres::types::PgRange, Row};
+use abi::ReservationStatus;
+use chrono::{NaiveDateTime, Utc};
+use sqlx::{postgres::types::PgRange, types::Uuid, Row};
 
-#[warn(non_snake_case)]
 #[async_trait::async_trait]
 impl Rsvp for ReservationManager {
     async fn reserve(
@@ -14,27 +14,30 @@ impl Rsvp for ReservationManager {
         };
 
         let start: NaiveDateTime =
-            NaiveDateTime::from_timestamp_opt(rsvp.start.clone().unwrap().seconds, 0).unwrap();
+            NaiveDateTime::from_timestamp_opt(rsvp.start.clone().expect("22").seconds, 0)
+                .expect("33");
         let end: NaiveDateTime =
             NaiveDateTime::from_timestamp_opt(rsvp.end.clone().unwrap().seconds, 0).unwrap();
-        if start <= end {
+        if end <= start {
             return Err(error::ReservationError::InvalidTime);
         };
+        let timespan = format!("[{}, {})", start, end);
 
-        let timespan: PgRange<_> = (start..end).into();
-        let id = sqlx::query(
-            "INSERT INTO reservation(user_id, resource_id, timespan, note ,status) VALUES($1, $2, $3, $4,   $5) RETURNING id"
+        let status = ReservationStatus::from_i32(rsvp.status).unwrap_or(ReservationStatus::Pending);
+
+        let id:Uuid = sqlx::query(
+            "INSERT INTO rsvp.reservation (user_id, resource_id, timespan, note ,status) VALUES ($1, $2, $3::tstzrange, $4, $5::rsvp.reservation_status) RETURNING id"
         )
         .bind(rsvp.user_id.clone())
         .bind(rsvp.resource_id.clone())
         .bind(timespan)
         .bind(rsvp.note.clone())
-        .bind(rsvp.status)
+        .bind(status.to_string())
         .fetch_one(&self.pool)
         .await?
         .get(0);
 
-        rsvp.id = id;
+        rsvp.id = id.to_string();
 
         Ok(rsvp)
     }
@@ -77,8 +80,8 @@ impl ReservationManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ReservationManager, Rsvp};
-    use abi::convert_str_to_Timestamp;
+    use crate::*;
+    use abi::convert_str_to_timestamp;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_should_work_for_volid_window() {
@@ -87,14 +90,14 @@ mod tests {
             id: "".to_string(),
             user_id: "zz id".to_string(),
             resource_id: "ocean-view-room-713".to_string(),
-            start: Some(convert_str_to_Timestamp("2023-03-10 17:20:35")),
-            end: Some(convert_str_to_Timestamp("2023-03-11 17:20:35")),
+            start: Some(convert_str_to_timestamp(&"2023-03-10 17:20:35")),
+            end: Some(convert_str_to_timestamp(&"2023-03-12 17:20:35")),
             // end: NaiveDateTime::parse_from_str("2023-03-11 16:53:56", &fmt).unwrap(),
             note: "我明天晚上7点入住".to_string(),
             status: abi::ReservationStatus::Pending as i32,
         };
 
-        let rsvp = manager.reserve(rsvp).await.unwrap();
+        let rsvp = manager.reserve(rsvp).await.expect("run reserve error");
         assert_ne!(rsvp.id, "");
     }
 
