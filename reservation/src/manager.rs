@@ -60,7 +60,7 @@ mod tests {
     use crate::*;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
-    async fn reserve_should_work_for_volid_window() {
+    async fn reserve_should_work_for_validate_window() {
         let manager = ReservationManager::new(migrated_pool.clone());
         let rsvp = abi::Reservation::new_pending(
             "zz id",
