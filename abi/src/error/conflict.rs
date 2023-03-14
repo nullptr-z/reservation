@@ -11,15 +11,15 @@ pub enum ReservationConflictInfo {
 
 #[derive(Debug, Clone)]
 pub struct ReservationConflict {
-    new: ReservationWindow,
-    old: ReservationWindow,
+    pub new: ReservationWindow,
+    pub old: ReservationWindow,
 }
 
 #[derive(Debug, Clone)]
 pub struct ReservationWindow {
-    rid: String,
-    start: NaiveDateTime,
-    end: NaiveDateTime,
+    pub rid: String,
+    pub start: NaiveDateTime,
+    pub end: NaiveDateTime,
 }
 
 impl FromStr for ReservationConflictInfo {

@@ -21,3 +21,10 @@ pub fn convert_timestamp_to_naiveDt(timestamp: Timestamp) -> NaiveDateTime {
     NaiveDateTime::from_timestamp_opt(timestamp.seconds, timestamp.nanos.try_into().unwrap())
         .unwrap()
 }
+
+pub fn convert_naiveDt_to_timestamp(time: NaiveDateTime) -> Timestamp {
+    Timestamp {
+        seconds: time.timestamp(),
+        nanos: time.timestamp_nanos() as i32,
+    }
+}

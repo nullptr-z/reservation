@@ -29,7 +29,13 @@ impl Rsvp for ReservationManager {
     }
 
     async fn update_status(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
-        todo!()
+        // if current status is pending,change it to confirmed, otherwise do nothing
+        let rsvp:abi::Reservation=sqlx::query_as(
+            // ReservationId,
+            "UPDATE rsvp.reservation SET status = 'confirmed' WHERE id = $1::Uuid AND status = 'pending' RETURNING *",
+        ).bind(id).fetch_one(&self.pool).await?;
+
+        Ok(rsvp)
     }
 
     async fn update_note(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
@@ -58,6 +64,8 @@ impl ReservationManager {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use abi::{ReservationConflictInfo, ReservationStatus};
+    use chrono::NaiveDateTime;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_should_work_for_validate_window() {
@@ -92,9 +100,39 @@ mod tests {
             "i'm today evening to check in",
         );
 
-        let rsvp = manager.reserve(rsvp1).await.unwrap();
-        let rsvp_err = manager.reserve(rsvp2).await.unwrap();
-
+        let _rsvp = manager.reserve(rsvp1).await.unwrap();
+        let rsvp_err = manager.reserve(rsvp2).await.unwrap_err();
         println!("{:?}", rsvp_err);
+
+        if let abi::Error::ConflictReservation(ReservationConflictInfo::Parsed(info)) = rsvp_err {
+            assert_eq!(info.old.rid, "ocean-view-room-713");
+            assert_eq!(
+                info.old.start,
+                NaiveDateTime::parse_from_str("2023-03-11 17:20:35", "%Y-%m-%d %H:%M:%S").unwrap()
+            );
+            assert_eq!(
+                info.old.end,
+                NaiveDateTime::parse_from_str("2023-03-13 17:20:35", "%Y-%m-%d %H:%M:%S").unwrap()
+            );
+        } else {
+            panic!("expect conflict reservation error, 意料之外的错误！")
+        }
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn reserve_change_status_should_work() {
+        let manager = ReservationManager::new(migrated_pool.clone());
+        let rsvp = abi::Reservation::new_pending(
+            "change test",
+            "ocean-view-room-713",
+            "2023-03-11 17:20:35",
+            "2023-03-12 17:20:35",
+            "测试更新状态函数：update_status",
+        );
+
+        let rsvp = manager.reserve(rsvp).await.expect("create reserve error");
+
+        let new_rsvp = manager.update_status(rsvp.id).await.unwrap();
+        assert_eq!(new_rsvp.status, ReservationStatus::Confirmed as i32);
     }
 }
