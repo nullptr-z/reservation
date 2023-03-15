@@ -11,10 +11,8 @@ use sqlx::{
 
 impl Reservation {
     pub fn new_pending<'a>(
-        // id: impl Into<String>,
         user_id: impl Into<String>,
         resource_id: impl Into<String>,
-        // status: impl Into<i32>,
         start: impl Into<&'a str>,
         end: impl Into<&'a str>,
         note: impl Into<String>,

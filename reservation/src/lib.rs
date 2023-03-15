@@ -22,7 +22,8 @@ pub trait Rsvp {
     // 更新预定,如果当前状态时`待定`的，则更新为确认
     async fn update_status(&self, id: ReservationId) -> Result<abi::Reservation, Error>;
     // update reservation note
-    async fn update_note(&self, id: ReservationId) -> Result<abi::Reservation, Error>;
+    async fn update_note(&self, id: ReservationId, note: String)
+        -> Result<abi::Reservation, Error>;
     // delete reservation by id
     async fn delete(&self, id: ReservationId) -> Result<(), Error>;
     // get reservation by id
