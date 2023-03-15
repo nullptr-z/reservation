@@ -1,4 +1,13 @@
-use crate::*;
+use crate::{
+    types::{reservation_date::NaiveDateRange, reservation_status::RsvpStatus},
+    *,
+};
+use chrono::{DateTime, Utc};
+use sqlx::{
+    postgres::{types::PgRange, PgRow},
+    types::Uuid,
+    FromRow, Row,
+};
 
 impl Reservation {
     pub fn new_pending<'a>(
@@ -54,5 +63,28 @@ impl Reservation {
         let end = convert_timestamp_to_naiveDt(self.end.clone().unwrap());
 
         format!("[{}, {})", start, end)
+    }
+}
+
+impl FromRow<'_, PgRow> for Reservation {
+    fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+        // `PgRange<DateTime<Utc>>` 与 Postgres `TSTZRANGE` 对应的类型
+        let time_range: PgRange<DateTime<Utc>> = row.get("timespan");
+        println!("time_range->{:?}", time_range);
+        let n_d_r: NaiveDateRange = time_range.into();
+
+        let status: RsvpStatus = row.get("status");
+
+        let id: Uuid = row.get("id");
+
+        Ok(Self {
+            id: id.to_string(),
+            resource_id: row.get("resource_id"),
+            user_id: row.get("user_id"),
+            status: ReservationStatus::from(status) as i32,
+            start: Some(convert_naiveDt_to_timestamp(n_d_r.start.unwrap())),
+            end: Some(convert_naiveDt_to_timestamp(n_d_r.end.unwrap())),
+            note: row.get("note"),
+        })
     }
 }
