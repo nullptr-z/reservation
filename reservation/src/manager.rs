@@ -112,8 +112,9 @@ mod tests {
     use crate::*;
     use abi::{
         convert_str_to_naiveDt, Reservation, ReservationConflict, ReservationConflictInfo,
-        ReservationQuery, ReservationStatus, ReservationWindow,
+        ReservationQueryBuilder, ReservationStatus, ReservationWindow,
     };
+    use prost_types::Timestamp;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_should_work_for_validate_window() {
@@ -178,17 +179,27 @@ mod tests {
         let manager = ReservationManager::new(migrated_pool.clone());
 
         let rsvp = create_alice_reservation(&manager).await;
+        println!("rsvp: {:?}", rsvp);
+        let query = ReservationQueryBuilder::default()
+            .user_id(rsvp.user_id)
+            // .resource_id(rsvp.resource_id)
+            .start("2023-03-10 12:00:00".parse::<Timestamp>().unwrap())
+            .end("2023-03-18 12:00:00".parse::<Timestamp>().unwrap())
+            .status(ReservationStatus::Pending)
+            .build()
+            .unwrap();
 
-        let query = ReservationQuery::new(
-            rsvp.user_id,
-            rsvp.resource_id,
-            ReservationStatus::Pending,
-            "2023-03-11 12:00:00",
-            "2023-03-18 12:00:00",
-            true,
-            1,
-            10,
-        );
+        println!("query：{:?}", query);
+        // let query = ReservationQuery::new(
+        //     rsvp.user_id,
+        //     rsvp.resource_id,
+        //     ReservationStatus::Pending,
+        //     "2023-03-11 12:00:00",
+        //     "2023-03-18 12:00:00",
+        //     true,
+        //     1,
+        //     10,
+        // );
         let query = manager.query(query).await.unwrap();
 
         println!("query: {:?}", query);
@@ -199,7 +210,7 @@ mod tests {
     async fn create_alice_reservation(manager: &ReservationManager) -> Reservation {
         create_reservation(
             manager,
-            "change test",
+            "test uid",
             "ocean-view-room-713",
             "2023-03-11 12:00:00",
             "2023-03-12 12:00:00",
