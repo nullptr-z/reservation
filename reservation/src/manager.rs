@@ -80,7 +80,30 @@ impl Rsvp for ReservationManager {
     }
 
     async fn query(&self, query: abi::ReservationQuery) -> Result<Vec<abi::Reservation>, Error> {
-        todo!()
+        let time_range = query.get_timespan();
+        let status = ReservationStatus::from_i32(query.status).unwrap();
+
+        let rsvps = sqlx::query_as(
+            "SELECT * FROM rsvp.query($1, $2, $3, $4::rsvp.reservation_status, $5, $6, $7)",
+        )
+        .bind(is_str_empty(&query.user_id))
+        .bind(is_str_empty(&query.resource_id))
+        .bind(time_range)
+        .bind(status.to_string())
+        .bind(query.desc)
+        .bind(query.page)
+        .bind(query.page_size)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rsvps)
+    }
+}
+
+fn is_str_empty(s: &str) -> Option<&str> {
+    match s.is_empty() {
+        true => None,
+        false => Some(s),
     }
 }
 
@@ -89,7 +112,7 @@ mod tests {
     use crate::*;
     use abi::{
         convert_str_to_naiveDt, Reservation, ReservationConflict, ReservationConflictInfo,
-        ReservationStatus, ReservationWindow,
+        ReservationQuery, ReservationStatus, ReservationWindow,
     };
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
@@ -149,6 +172,28 @@ mod tests {
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_change_status_not_confirmed_should_do_nothing() {}
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn query_reservation_should_work() {
+        let manager = ReservationManager::new(migrated_pool.clone());
+
+        let rsvp = create_alice_reservation(&manager).await;
+
+        let query = ReservationQuery::new(
+            rsvp.user_id,
+            rsvp.resource_id,
+            ReservationStatus::Pending,
+            "2023-03-11 12:00:00",
+            "2023-03-18 12:00:00",
+            true,
+            1,
+            10,
+        );
+        let query = manager.query(query).await.unwrap();
+
+        println!("query: {:?}", query);
+        assert!(query.len() > 0)
+    }
 
     //#region 用于构造 Reservation 工具函数
     async fn create_alice_reservation(manager: &ReservationManager) -> Reservation {

@@ -12,19 +12,25 @@ pub fn convert_str_to_timestamp(dt: &str) -> Timestamp {
     }
 }
 
-pub fn convert_naiveDt_to_timestamp(time: NaiveDateTime) -> Timestamp {
+pub fn convert_naiveDt_to_timestamp(time: &NaiveDateTime) -> Timestamp {
     Timestamp {
         seconds: time.timestamp(),
         nanos: time.timestamp_nanos() as i32,
     }
 }
 
-pub fn convert_timestamp_to_str(timestamp: Timestamp) -> String {
+pub fn convert_timestamp_to_str(timestamp: &Timestamp) -> String {
     let dt = Local.timestamp_opt(timestamp.seconds, 0).unwrap();
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-pub fn convert_timestamp_to_naiveDt(timestamp: Timestamp) -> NaiveDateTime {
+pub fn convert_timestamp_to_date_time(timestamp: &Timestamp) -> DateTime<Utc> {
+    convert_timestamp_to_naiveDt(timestamp)
+        .and_local_timezone(Utc)
+        .unwrap()
+}
+
+pub fn convert_timestamp_to_naiveDt(timestamp: &Timestamp) -> NaiveDateTime {
     NaiveDateTime::from_timestamp_opt(timestamp.seconds, timestamp.nanos.try_into().unwrap())
         .unwrap()
 }

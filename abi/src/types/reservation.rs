@@ -9,6 +9,8 @@ use sqlx::{
     FromRow, Row,
 };
 
+use super::validate_range;
+
 impl Reservation {
     pub fn new_pending<'a>(
         user_id: impl Into<String>,
@@ -37,28 +39,12 @@ impl Reservation {
             return Err(Error::InvalidResourceId(&self.resource_id));
         }
 
-        if self.start.is_none() || self.end.is_none() {
-            return Err(Error::InvalidTime(
-                convert_timestamp_to_str(self.start.clone().unwrap()),
-                convert_timestamp_to_str(self.end.clone().unwrap()),
-            ));
-        } else {
-            let start = self.start.clone().unwrap();
-            let end = self.end.clone().unwrap();
-            if start.seconds >= end.seconds {
-                return Err(Error::InvalidTime(
-                    convert_timestamp_to_str(start),
-                    convert_timestamp_to_str(end),
-                ));
-            }
-        }
-
-        Ok(())
+        validate_range(self.start.as_ref(), self.end.as_ref())
     }
 
     pub fn get_timespan(&self) -> String {
-        let start = convert_timestamp_to_naiveDt(self.start.clone().unwrap());
-        let end = convert_timestamp_to_naiveDt(self.end.clone().unwrap());
+        let start = convert_timestamp_to_naiveDt(self.start.as_ref().unwrap());
+        let end = convert_timestamp_to_naiveDt(self.end.as_ref().unwrap());
 
         format!("[{}, {})", start, end)
     }
@@ -80,8 +66,8 @@ impl FromRow<'_, PgRow> for Reservation {
             resource_id: row.get("resource_id"),
             user_id: row.get("user_id"),
             status: ReservationStatus::from(status) as i32,
-            start: Some(convert_naiveDt_to_timestamp(n_d_r.start.unwrap())),
-            end: Some(convert_naiveDt_to_timestamp(n_d_r.end.unwrap())),
+            start: Some(convert_naiveDt_to_timestamp(&n_d_r.start.unwrap())),
+            end: Some(convert_naiveDt_to_timestamp(&n_d_r.end.unwrap())),
             note: row.get("note"),
         })
     }

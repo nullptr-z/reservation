@@ -126,6 +126,12 @@ message ReservationQuery{
   // end time for the reservation query,if 0, use infinty end time
   // 预定查询的结束时间,如 果为0，使用 infity end time
   google.protobuf.Timestamp end = 5;
+  // current page for the query
+  int32 page=6;
+  // page size for ther qeury
+  int32 page_size=7;
+  // sort direction` 排序方向
+  bool desc=8;
 }
 
 // To query a reservation, send a QueryRequest
