@@ -40,19 +40,19 @@ trait BuilderExt {
 
 impl BuilderExt for Builder {
     fn with_sql_type(self, paths: &[&str]) -> Self {
-        paths.into_iter().fold(self, |acc, path| {
+        paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(sqlx::Type)]")
         })
     }
 
     fn with_builder(self, paths: &[&str]) -> Self {
-        paths.into_iter().fold(self, |acc, path| {
+        paths.iter().fold(self, |acc, path| {
             acc.type_attribute(path, "#[derive(derive_builder::Builder)]")
         })
     }
 
     fn with_builder_into(self, path: &str, fields: &[&str]) -> Self {
-        fields.into_iter().fold(self, |acc, field| {
+        fields.iter().fold(self, |acc, field| {
             acc.field_attribute(
                 &format!("{}.{}", path, field),
                 "#[builder(setter(into), default)]",
@@ -61,7 +61,7 @@ impl BuilderExt for Builder {
     }
 
     fn with_builder_option(self, path: &str, fields: &[&str]) -> Self {
-        fields.into_iter().fold(self, |acc, field| {
+        fields.iter().fold(self, |acc, field| {
             acc.field_attribute(
                 &format!("{}.{}", path, field),
                 "#[builder(setter(into, strip_option))]",
