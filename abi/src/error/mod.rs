@@ -10,6 +10,8 @@ pub enum Error<'a> {
     InvalidUserId(&'a str),
     #[error("Invalid resource id: {0}")]
     InvalidResourceId(&'a str),
+    #[error("Invalid reservation id: {0}")]
+    InvalidReservationId(i64),
     #[error("DataBase errr")]
     DbError(sqlx::Error),
     #[error("No reservation found by the given condition` 没有找到给定的条件预定")]

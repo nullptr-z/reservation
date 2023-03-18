@@ -8,8 +8,8 @@ pub struct Reservation {
     /// unique id
     /// if put into ReserveRequest, id should be empty
     /// 如果放入 ReserveRequest，ID应该是空的
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(int64, tag = "1")]
+    pub id: i64,
     /// resource id
     #[prost(string, tag = "2")]
     pub resource_id: ::prost::alloc::string::String,

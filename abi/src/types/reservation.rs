@@ -5,7 +5,6 @@ use crate::{
 use chrono::{DateTime, Utc};
 use sqlx::{
     postgres::{types::PgRange, PgRow},
-    types::Uuid,
     FromRow, Row,
 };
 
@@ -20,7 +19,7 @@ impl Reservation {
         note: impl Into<String>,
     ) -> Self {
         Self {
-            id: "".into(),
+            id: 0,
             resource_id: resource_id.into(),
             status: ReservationStatus::Pending as i32,
             user_id: user_id.into(),
@@ -59,10 +58,10 @@ impl FromRow<'_, PgRow> for Reservation {
 
         let status: RsvpStatus = row.get("status");
 
-        let id: Uuid = row.get("id");
+        let id: i64 = row.get("id");
 
         Ok(Self {
-            id: id.to_string(),
+            id,
             resource_id: row.get("resource_id"),
             user_id: row.get("user_id"),
             status: ReservationStatus::from(status) as i32,

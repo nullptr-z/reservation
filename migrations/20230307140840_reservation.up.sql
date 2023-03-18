@@ -5,7 +5,7 @@ CREATE TYPE rsvp.reservation_update_type AS ENUM('unknown','create','update','de
 -- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE rsvp.reservation (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  id BIGSERIAL NOT NULL,
   user_id VARCHAR(64) NOT NULL,
   status rsvp.reservation_status NOT NULL DEFAULT 'pending',
 

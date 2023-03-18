@@ -1,7 +1,7 @@
 -- reservation change queue
 CREATE TABLE rsvp.reservation_changes (
   id SERIAL NOT NULL,
-  resevation_id uuid NOT NULL,
+  reservation_id BIGSERIAL NOT NULL,
   op rsvp.reservation_update_type NOT NULL
 );
 
@@ -9,14 +9,14 @@ CREATE TABLE rsvp.reservation_changes (
 CREATE OR REPLACE FUNCTION rsvp.reservation_trigger() RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    INSERT INTO rsvp.reservation_changes(resevation_id, op) VALUES (NEW.id, 'create');
+    INSERT INTO rsvp.reservation_changes(reservation_id, op) VALUES (NEW.id, 'create');
   ELSEIF TG_OP = 'UPDATE' THEN
     -- 如果OLD.status 不等于 NEW.status，改变 reservation_changes
     IF OLD.status <> NEW.status THEN
-      INSERT INTO rsvp.reservation_changes(resevation_id, op) VALUES (NEW.id, 'update');
+      INSERT INTO rsvp.reservation_changes(reservation_id, op) VALUES (NEW.id, 'update');
     END IF;
   ELSEIF TG_OP = 'DELETE' THEN
-    INSERT INTO rsvp.reservation_changes(resevation_id, op) VALUES (OLD.id, 'delete');
+    INSERT INTO rsvp.reservation_changes(reservation_id, op) VALUES (OLD.id, 'delete');
   END IF;
 
   NOTIFY reservation_update;

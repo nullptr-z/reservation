@@ -7,7 +7,7 @@
 
 > psql
 
-postgres=# create user zheng with password 'pass';
+postgres=# create user zheng with password 'z';
 CREATE ROLE
 postgres=# create database zheng owner zheng;
 CREATE DATABASE

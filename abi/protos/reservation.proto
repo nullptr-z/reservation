@@ -27,7 +27,7 @@ message Reservation {
   // unique id
   // if put into ReserveRequest, id should be empty
   // 如果放入 ReserveRequest，ID应该是空的
-  string id = 1;
+  int64 id = 1;
   // resource id
   string resource_id = 2;
 

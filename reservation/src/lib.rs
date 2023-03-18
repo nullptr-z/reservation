@@ -1,12 +1,8 @@
 mod manager;
 
-use abi::Error;
+use abi::{Error, ReservationId};
 use async_trait::async_trait;
 use sqlx::PgPool;
-
-pub type ReservationId = String;
-pub type UserId = String;
-pub type ResourceId = String;
 
 pub struct ReservationManager {
     // postgres，可以在一个应用程序中分发共享数据库链接
