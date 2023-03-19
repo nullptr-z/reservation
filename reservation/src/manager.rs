@@ -1,5 +1,4 @@
-use crate::{ReservationId, ReservationManager, Rsvp};
-use abi::{Error, ReservationStatus, Validate};
+use crate::*;
 use sqlx::Row;
 
 impl ReservationManager {
@@ -8,7 +7,7 @@ impl ReservationManager {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl Rsvp for ReservationManager {
     async fn reserve(&self, mut rsvp: abi::Reservation) -> Result<abi::Reservation, Error> {
         rsvp.validate().unwrap();
@@ -89,8 +88,8 @@ impl Rsvp for ReservationManager {
         let rsvps = sqlx::query_as(
             "SELECT * FROM rsvp.query($1, $2, $3, $4::rsvp.reservation_status, $5, $6, $7)",
         )
-        .bind(is_str_empty(&query.user_id))
-        .bind(is_str_empty(&query.resource_id))
+        .bind(str_to_option(&query.user_id))
+        .bind(str_to_option(&query.resource_id))
         .bind(time_range)
         .bind(status.to_string())
         .bind(query.desc)
@@ -101,9 +100,58 @@ impl Rsvp for ReservationManager {
 
         Ok(rsvps)
     }
+
+    async fn filter(
+        &self,
+        filter: ReservationFilter,
+    ) -> Result<(FilterPager, Vec<abi::Reservation>), Error> {
+        // filter reservation by user id, resource id, status, and order by id
+        // let status =
+        //     ReservationStatus::from_i32(filter.status).unwrap_or(ReservationStatus::Pending);
+        let status = ReservationStatus::from_i32(filter.status).unwrap();
+
+        println!("filter:{:?}", filter);
+        let page_size = if filter.page_size < 10 || filter.page_size > 100 {
+            10
+        } else {
+            filter.page_size
+        };
+
+        let rsvps: Vec<Reservation> = sqlx::query_as(
+            "SELECT * FROM rsvp.filter($1, $2, $3::rsvp.reservation_status, $4, $5, $6)",
+        )
+        .bind(str_to_option(&filter.user_id))
+        .bind(str_to_option(&filter.resource_id))
+        .bind(status.to_string())
+        .bind(filter.cursor)
+        .bind(filter.desc)
+        .bind(page_size)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let has_prev = !rsvps.is_empty() && rsvps[0].id == filter.cursor;
+        let start = if has_prev { 1 } else { 0 };
+
+        let has_next = (rsvps.len() - start) as i32 > page_size;
+        let end = match has_next {
+            true => rsvps.len() - 1,
+            false => rsvps.len(),
+        };
+
+        let prev = if has_prev { rsvps[start - 1].id } else { -1 };
+        let next = if has_next { rsvps[end - 1].id } else { -1 };
+
+        let pager = FilterPager {
+            next,
+            prev,
+            total: 0,
+        };
+
+        Ok((pager, rsvps))
+    }
 }
 
-fn is_str_empty(s: &str) -> Option<&str> {
+fn str_to_option(s: &str) -> Option<&str> {
     match s.is_empty() {
         true => None,
         false => Some(s),
@@ -182,7 +230,6 @@ mod tests {
         let manager = ReservationManager::new(migrated_pool.clone());
 
         let rsvp = create_alice_reservation(&manager).await;
-        println!("rsvp: {:?}", rsvp);
         let query = ReservationQueryBuilder::default()
             .user_id(rsvp.user_id)
             // .resource_id(rsvp.resource_id)
@@ -193,20 +240,28 @@ mod tests {
             .unwrap();
 
         println!("query：{:?}", query);
-        // let query = ReservationQuery::new(
-        //     rsvp.user_id,
-        //     rsvp.resource_id,
-        //     ReservationStatus::Pending,
-        //     "2023-03-11 12:00:00",
-        //     "2023-03-18 12:00:00",
-        //     true,
-        //     1,
-        //     10,
-        // );
         let query = manager.query(query).await.unwrap();
 
         println!("query: {:?}", query);
         assert!(query.len() > 0)
+    }
+
+    #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
+    async fn filter_reservation_should_work() {
+        let manager = ReservationManager::new(migrated_pool.clone());
+
+        let rsvp = create_alice_reservation(&manager).await;
+
+        let filter = ReservationFilterBuilder::default()
+            .user_id(rsvp.user_id)
+            // .cursor(value)
+            .status(ReservationStatus::Pending)
+            .build()
+            .unwrap();
+
+        let (pager, rsvps) = manager.filter(filter).await.unwrap();
+        println!("pager:{:?}", pager);
+        assert!(rsvps.len() > 0)
     }
 
     //#region 用于构造 Reservation 工具函数

@@ -139,6 +139,46 @@ message ReservationQuery{
 message QueryRequest {
   ReservationQuery query=1;
 }
+
+// filter pager info
+message FilterPager{
+  int64 prev=1;
+  int64 next=2;
+  int32 total=3;
+}
+
+message FilterResponse {
+  repeated Reservation reserved = 1;
+  FilterPager pager = 2;
+}
+
+// To query a reservation, order by reservation id
+message ReservationFilter{
+  // resource id, if empty, query all resources
+  // 预定资源查询ID, 如果ID为空则查询全部资源
+  string resource_id =1;
+
+  // user id, if empty, query all users
+  // 预定用户查询ID，如果ID为空，查询全部用户
+  string user_id =2;
+
+  // use status to filter result. If UNKNOWN, return all reservations
+  // 如果用户状态未知，返回他的所有预定
+  ReservationStatus status =3;
+
+  // previous cursor
+  int64 cursor=4;
+  // page size for the query
+  int32 page_size=5;
+  // sort direction` 排序方向
+  bool desc=6;
+}
+
+message FilterRequest{
+  ReservationFilter queru = 1;
+}
+
+
 // Client Can listen to reservation update by sending a ListenRequest
 // 客户端可以通过发送 ListenRequest 来监听预订更新
 message ListenRequest {}
@@ -173,6 +213,8 @@ service ReservationService {
   // query reservation by resource id, user id, status, start time, end time
   // 通过资源id、用户id、状态、开始时间、结束时间 查询预约
   rpc Query(QueryRequest) returns (stream Reservation);
+  // 查询时通过ID进行排序
+  rpc filter(FilterRequest) returns (stream Reservation);
   // an other system could moniton newly added/confirmed/cancelled reservation
   // 另一个系统可以监控新添加/确认/取消的预订
   rpc listen(ListenRequest) returns (stream Reservation);

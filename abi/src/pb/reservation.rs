@@ -161,6 +161,64 @@ pub struct QueryRequest {
     #[prost(message, optional, tag = "1")]
     pub query: ::core::option::Option<ReservationQuery>,
 }
+/// filter pager info
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FilterPager {
+    #[prost(int64, tag = "1")]
+    pub prev: i64,
+    #[prost(int64, tag = "2")]
+    pub next: i64,
+    #[prost(int32, tag = "3")]
+    pub total: i32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FilterResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub reserved: ::prost::alloc::vec::Vec<Reservation>,
+    #[prost(message, optional, tag = "2")]
+    pub pager: ::core::option::Option<FilterPager>,
+}
+/// To query a reservation, order by reservation id
+#[derive(derive_builder::Builder)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReservationFilter {
+    /// resource id, if empty, query all resources
+    /// 预定资源查询ID, 如果ID为空则查询全部资源
+    #[prost(string, tag = "1")]
+    #[builder(setter(into), default)]
+    pub resource_id: ::prost::alloc::string::String,
+    /// user id, if empty, query all users
+    /// 预定用户查询ID，如果ID为空，查询全部用户
+    #[prost(string, tag = "2")]
+    #[builder(setter(into), default)]
+    pub user_id: ::prost::alloc::string::String,
+    /// use status to filter result. If UNKNOWN, return all reservations
+    /// 如果用户状态未知，返回他的所有预定
+    #[prost(enumeration = "ReservationStatus", tag = "3")]
+    #[builder(setter(into), default)]
+    pub status: i32,
+    /// previous cursor
+    #[prost(int64, tag = "4")]
+    #[builder(setter(into), default)]
+    pub cursor: i64,
+    /// page size for the query
+    #[prost(int32, tag = "5")]
+    #[builder(setter(into), default)]
+    pub page_size: i32,
+    /// sort direction` 排序方向
+    #[prost(bool, tag = "6")]
+    #[builder(setter(into), default)]
+    pub desc: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FilterRequest {
+    #[prost(message, optional, tag = "1")]
+    pub queru: ::core::option::Option<ReservationFilter>,
+}
 /// Client Can listen to reservation update by sending a ListenRequest
 /// 客户端可以通过发送 ListenRequest 来监听预订更新
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -421,6 +479,25 @@ pub mod reservation_service_client {
                 .server_streaming(request.into_request(), path, codec)
                 .await
         }
+        /// 查询时通过ID进行排序
+        pub async fn filter(
+            &mut self,
+            request: impl tonic::IntoRequest<super::FilterRequest>,
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::Reservation>>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/reservation.ReservationService/filter");
+            self.inner
+                .server_streaming(request.into_request(), path, codec)
+                .await
+        }
         /// an other system could moniton newly added/confirmed/cancelled reservation
         /// 另一个系统可以监控新添加/确认/取消的预订
         pub async fn listen(
@@ -490,6 +567,15 @@ pub mod reservation_service_server {
             &self,
             request: tonic::Request<super::QueryRequest>,
         ) -> Result<tonic::Response<Self::QueryStream>, tonic::Status>;
+        /// Server streaming response type for the filter method.
+        type filterStream: futures_core::Stream<Item = Result<super::Reservation, tonic::Status>>
+            + Send
+            + 'static;
+        /// 查询时通过ID进行排序
+        async fn filter(
+            &self,
+            request: tonic::Request<super::FilterRequest>,
+        ) -> Result<tonic::Response<Self::filterStream>, tonic::Status>;
         /// Server streaming response type for the listen method.
         type listenStream: futures_core::Stream<Item = Result<super::Reservation, tonic::Status>>
             + Send
@@ -735,6 +821,42 @@ pub mod reservation_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = QuerySvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
+                            accept_compression_encodings,
+                            send_compression_encodings,
+                        );
+                        let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/reservation.ReservationService/filter" => {
+                    #[allow(non_camel_case_types)]
+                    struct filterSvc<T: ReservationService>(pub Arc<T>);
+                    impl<T: ReservationService>
+                        tonic::server::ServerStreamingService<super::FilterRequest>
+                        for filterSvc<T>
+                    {
+                        type Response = super::Reservation;
+                        type ResponseStream = T::filterStream;
+                        type Future =
+                            BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::FilterRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).filter(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = filterSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec).apply_compression_config(
                             accept_compression_encodings,

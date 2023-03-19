@@ -1,8 +1,8 @@
 mod manager;
 
-use abi::{Error, ReservationId};
-use async_trait::async_trait;
-use sqlx::PgPool;
+pub use abi::*;
+pub use async_trait::async_trait;
+pub use sqlx::PgPool;
 
 pub struct ReservationManager {
     // postgres，可以在一个应用程序中分发共享数据库链接
@@ -26,4 +26,9 @@ pub trait Rsvp {
     async fn get(&self, id: ReservationId) -> Result<abi::Reservation, Error>;
     // query reservations
     async fn query(&self, query: abi::ReservationQuery) -> Result<Vec<abi::Reservation>, Error>;
+    // To query reservation order by id
+    async fn filter(
+        &self,
+        filter: ReservationFilter,
+    ) -> Result<(FilterPager, Vec<abi::Reservation>), Error>;
 }

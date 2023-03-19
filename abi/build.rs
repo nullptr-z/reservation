@@ -6,7 +6,10 @@ fn main() {
     tonic_build::configure()
         .out_dir("src/pb")
         .with_sql_type(&["reservation.ReservationStatus"])
-        .with_builder(&["reservation.ReservationQuery"])
+        .with_builder(&[
+            "reservation.ReservationQuery",
+            "reservation.ReservationFilter",
+        ])
         .with_builder_into(
             "reservation.ReservationQuery",
             &[
@@ -15,6 +18,17 @@ fn main() {
                 "status",
                 "desc",
                 "page",
+                "page_size",
+            ],
+        )
+        .with_builder_into(
+            "reservation.ReservationFilter",
+            &[
+                "user_id",
+                "resource_id",
+                "status",
+                "cursor",
+                "desc",
                 "page_size",
             ],
         )
