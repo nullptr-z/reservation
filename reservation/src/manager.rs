@@ -1,9 +1,19 @@
 use crate::*;
-use sqlx::Row;
+use sqlx::{postgres::PgPoolOptions, Row};
 
 impl ReservationManager {
-    fn new(pool: sqlx::PgPool) -> Self {
+    pub fn new(pool: sqlx::PgPool) -> Self {
         Self { pool }
+    }
+
+    pub async fn from_config(config: &DbConfig) -> Result<Self, Error> {
+        let url = config.url();
+        let pool = PgPoolOptions::default()
+            .max_connections(config.max_connections)
+            .connect(&url)
+            .await?;
+        // ::connect(&url).await?;
+        Ok(Self::new(pool))
     }
 }
 

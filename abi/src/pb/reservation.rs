@@ -380,7 +380,7 @@ pub mod reservation_service_client {
         pub async fn reserve(
             &mut self,
             request: impl tonic::IntoRequest<super::ReserveRequest>,
-        ) -> Result<tonic::Response<super::ReserveRequest>, tonic::Status> {
+        ) -> Result<tonic::Response<super::ReserveResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
                     tonic::Code::Unknown,
@@ -483,7 +483,7 @@ pub mod reservation_service_client {
         pub async fn filter(
             &mut self,
             request: impl tonic::IntoRequest<super::FilterRequest>,
-        ) -> Result<tonic::Response<tonic::codec::Streaming<super::Reservation>>, tonic::Status>
+        ) -> Result<tonic::Response<tonic::codec::Streaming<super::FilterResponse>>, tonic::Status>
         {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::new(
@@ -532,7 +532,7 @@ pub mod reservation_service_server {
         async fn reserve(
             &self,
             request: tonic::Request<super::ReserveRequest>,
-        ) -> Result<tonic::Response<super::ReserveRequest>, tonic::Status>;
+        ) -> Result<tonic::Response<super::ReserveResponse>, tonic::Status>;
         /// confirm a pending reservation, if reservation is not pending, do nothing
         /// 确认待定的预定，如果预定不是待定的，什么都不做
         async fn confirm(
@@ -568,7 +568,7 @@ pub mod reservation_service_server {
             request: tonic::Request<super::QueryRequest>,
         ) -> Result<tonic::Response<Self::QueryStream>, tonic::Status>;
         /// Server streaming response type for the filter method.
-        type filterStream: futures_core::Stream<Item = Result<super::Reservation, tonic::Status>>
+        type filterStream: futures_core::Stream<Item = Result<super::FilterResponse, tonic::Status>>
             + Send
             + 'static;
         /// 查询时通过ID进行排序
@@ -645,7 +645,7 @@ pub mod reservation_service_server {
                     #[allow(non_camel_case_types)]
                     struct reserveSvc<T: ReservationService>(pub Arc<T>);
                     impl<T: ReservationService> tonic::server::UnaryService<super::ReserveRequest> for reserveSvc<T> {
-                        type Response = super::ReserveRequest;
+                        type Response = super::ReserveResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
@@ -838,7 +838,7 @@ pub mod reservation_service_server {
                         tonic::server::ServerStreamingService<super::FilterRequest>
                         for filterSvc<T>
                     {
-                        type Response = super::Reservation;
+                        type Response = super::FilterResponse;
                         type ResponseStream = T::filterStream;
                         type Future =
                             BoxFuture<tonic::Response<Self::ResponseStream>, tonic::Status>;

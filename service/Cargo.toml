@@ -1,8 +1,16 @@
 [package]
-name = "raservation-service"
+name = "reservation-service"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+abi = { version = "0.1.0", path = "../abi" }
+anyhow = "1.0.70"
+futures = { version = "0.3.27", default-features = false }
+reservation = { version = "0.1.0", path = "../reservation" }
+serde = { version = "1.0.157", features = ["derive"] }
+serde_yaml = "0.9.19"
+tokio = { version = "1.26.0", features = ["full"] }
+tonic = { version = "0.8.3", features = ["tokio-rustls", "gzip"] }

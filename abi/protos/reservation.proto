@@ -197,7 +197,7 @@ message ListenResponse {
 service ReservationService {
   // make a reservation
   // 构建一个预定
-  rpc reserve(ReserveRequest) returns (ReserveRequest);
+  rpc reserve(ReserveRequest) returns (ReserveResponse);
   // confirm a pending reservation, if reservation is not pending, do nothing
   // 确认待定的预定，如果预定不是待定的，什么都不做
   rpc confirm(ConfirmRequest) returns (ConfirmResponse);
@@ -214,7 +214,7 @@ service ReservationService {
   // 通过资源id、用户id、状态、开始时间、结束时间 查询预约
   rpc Query(QueryRequest) returns (stream Reservation);
   // 查询时通过ID进行排序
-  rpc filter(FilterRequest) returns (stream Reservation);
+  rpc filter(FilterRequest) returns (stream FilterResponse);
   // an other system could moniton newly added/confirmed/cancelled reservation
   // 另一个系统可以监控新添加/确认/取消的预订
   rpc listen(ListenRequest) returns (stream Reservation);

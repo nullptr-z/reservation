@@ -22,6 +22,11 @@ pub enum Error<'a> {
     InvalidTime(String, String),
     #[error("unknown error")]
     Unknown,
+
+    #[error("Failed to read configuration file")]
+    COnfigReadError,
+    #[error("Failed to read configuration file")]
+    COnfigParseError,
 }
 
 impl PartialEq for Error<'_> {
