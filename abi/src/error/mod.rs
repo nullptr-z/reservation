@@ -24,9 +24,9 @@ pub enum Error<'a> {
     Unknown,
 
     #[error("Failed to read configuration file")]
-    COnfigReadError,
+    ConfigReadError,
     #[error("Failed to read configuration file")]
-    COnfigParseError,
+    ConfigParseError,
 }
 
 impl PartialEq for Error<'_> {
@@ -67,6 +67,38 @@ impl From<sqlx::Error> for Error<'_> {
             }
             sqlx::Error::RowNotFound => Error::NotFound,
             _ => Error::DbError(s_err),
+        }
+    }
+}
+
+impl From<Error<'_>> for tonic::Status {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::InvalidUserId(id) => {
+                tonic::Status::invalid_argument(format!("Invalid user id: {}", id))
+            }
+            Error::InvalidResourceId(id) => {
+                tonic::Status::invalid_argument(format!("Invalid resource id: {}", id))
+            }
+            Error::InvalidReservationId(id) => {
+                tonic::Status::invalid_argument(format!("Invalid reservation id: {}", id))
+            }
+            Error::DbError(e) => tonic::Status::internal(format!("Database error: {}", e)),
+            Error::NotFound => {
+                tonic::Status::not_found("No reservation found by the given condition")
+            }
+            Error::ConflictReservation(info) => {
+                tonic::Status::failed_precondition(format!("Conflict reservation: {:?}", info))
+            }
+            Error::InvalidTime(start, end) => tonic::Status::invalid_argument(format!(
+                "Invalid start or end time for start: {} or end: {}",
+                start, end
+            )),
+            Error::Unknown => tonic::Status::unknown("Unknown eroor"),
+            Error::ConfigReadError => tonic::Status::internal("Failed to read configuration file"),
+            Error::ConfigParseError => {
+                tonic::Status::internal("Failed to parse configuration file")
+            }
         }
     }
 }

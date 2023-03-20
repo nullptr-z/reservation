@@ -33,9 +33,8 @@ pub struct ServerConfig {
 
 impl Config {
     pub fn load(filename: &str) -> Result<Self, Error> {
-        let config = fs::read_to_string(filename).map_err(|_| Error::COnfigReadError)?;
-        println!("config---{:?}", config);
-        Ok(serde_yaml::from_str(&config).map_err(|_| Error::COnfigReadError)?)
+        let config = fs::read_to_string(filename).map_err(|_| Error::ConfigReadError)?;
+        Ok(serde_yaml::from_str(&config).map_err(|_| Error::ConfigReadError)?)
     }
 }
 

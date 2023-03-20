@@ -9,9 +9,9 @@ pub struct RsvpService {
 }
 
 impl RsvpService {
-    pub async fn new(config: &DbConfig) -> Result<Self, Error> {
+    pub async fn from_config(config: &Config) -> Result<Self, Error> {
         Ok(Self {
-            manager: ReservationManager::from_config(&config).await?,
+            manager: ReservationManager::from_config(&config.db).await?,
         })
     }
 }
