@@ -5,11 +5,11 @@ use sqlx::postgres::PgDatabaseError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum Error<'a> {
+pub enum Error {
     #[error("Invalid user id: {0}")]
-    InvalidUserId(&'a str),
+    InvalidUserId(String),
     #[error("Invalid resource id: {0}")]
-    InvalidResourceId(&'a str),
+    InvalidResourceId(String),
     #[error("Invalid reservation id: {0}")]
     InvalidReservationId(i64),
     #[error("DataBase errr")]
@@ -29,7 +29,7 @@ pub enum Error<'a> {
     ConfigParseError,
 }
 
-impl PartialEq for Error<'_> {
+impl PartialEq for Error {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::DbError(_), Self::DbError(_)) => true,
@@ -49,7 +49,7 @@ impl PartialEq for Error<'_> {
 }
 
 // @0 sqlx::Error的错误在这里做额外处理
-impl From<sqlx::Error> for Error<'_> {
+impl From<sqlx::Error> for Error {
     fn from(s_err: sqlx::Error) -> Self {
         match s_err {
             sqlx::Error::Database(db_err) => {
@@ -62,7 +62,10 @@ impl From<sqlx::Error> for Error<'_> {
                         // 最终呈现 ReservationWindow
                         Error::ConflictReservation(err.detail().unwrap().parse().unwrap())
                     }
-                    _ => Error::DbError(sqlx::Error::Database(db_err)),
+                    _ => {
+                        println!("{}: {:?}", err.code(), err);
+                        Error::DbError(sqlx::Error::Database(db_err))
+                    }
                 }
             }
             sqlx::Error::RowNotFound => Error::NotFound,
@@ -71,7 +74,7 @@ impl From<sqlx::Error> for Error<'_> {
     }
 }
 
-impl From<Error<'_>> for tonic::Status {
+impl From<Error> for tonic::Status {
     fn from(e: Error) -> Self {
         match e {
             Error::InvalidUserId(id) => {

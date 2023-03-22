@@ -15,10 +15,7 @@ mod reservation_status;
 // pub use reservation_date::*;
 // pub use reservation_status::*;
 
-pub fn validate_range(
-    start: Option<&Timestamp>,
-    end: Option<&Timestamp>,
-) -> Result<(), Error<'static>> {
+pub fn validate_range(start: Option<&Timestamp>, end: Option<&Timestamp>) -> Result<(), Error> {
     if start.is_none() || end.is_none() {
         return Err(Error::InvalidTime(
             convert_timestamp_to_str(start.unwrap()),

@@ -1,10 +1,10 @@
 ---
 db:
-  host: localhost
+  host: 127.0.0.1
   port: 5432
   user: zheng
   password: zz
-  dbname: reservation
+  dbname: zheng
 server:
-  host: localhost
-  port: 50051
+  host: 127.0.0.1
+  port: 9876

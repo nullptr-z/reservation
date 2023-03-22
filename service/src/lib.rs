@@ -1,4 +1,7 @@
-use abi::{reservation_service_server::ReservationService, *};
+use abi::{
+    reservation_service_server::{ReservationService, ReservationServiceServer},
+    *,
+};
 use anyhow::Result;
 use futures::Stream;
 use reservation::{ReservationManager, Rsvp};

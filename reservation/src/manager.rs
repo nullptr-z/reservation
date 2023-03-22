@@ -324,7 +324,7 @@ mod tests {
         start: &'a str,
         end: &'a str,
         note: &'a str,
-    ) -> Result<Reservation, Error<'a>> {
+    ) -> Result<Reservation, Error> {
         let rsvp = abi::Reservation::new_pending(uid, rid, start, end, note);
 
         let rsvp = manager.reserve(rsvp).await?;

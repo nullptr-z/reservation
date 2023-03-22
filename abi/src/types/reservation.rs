@@ -31,11 +31,11 @@ impl Reservation {
 
     pub fn validate(&self) -> Result<(), Error> {
         if self.user_id.is_empty() {
-            return Err(Error::InvalidUserId(&self.user_id));
+            return Err(Error::InvalidUserId(self.user_id.clone()));
         }
 
         if self.resource_id.is_empty() {
-            return Err(Error::InvalidResourceId(&self.resource_id));
+            return Err(Error::InvalidResourceId(self.resource_id.clone()));
         }
 
         validate_range(self.start.as_ref(), self.end.as_ref())

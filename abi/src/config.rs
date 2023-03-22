@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -32,9 +32,9 @@ pub struct ServerConfig {
 }
 
 impl Config {
-    pub fn load(filename: &str) -> Result<Self, Error> {
-        let config = fs::read_to_string(filename).map_err(|_| Error::ConfigReadError)?;
-        Ok(serde_yaml::from_str(&config).map_err(|_| Error::ConfigReadError)?)
+    pub fn load<'a>(filename: impl AsRef<Path>) -> Result<Self, Error> {
+        let config = fs::read_to_string(filename.as_ref()).map_err(|_| Error::ConfigReadError)?;
+        serde_yaml::from_str(&config).map_err(|_| Error::ConfigReadError)
     }
 }
 
@@ -56,7 +56,6 @@ impl DbConfig {
 
 #[cfg(test)]
 mod tests {
-    use tonic::async_trait;
 
     use super::*;
 
@@ -78,7 +77,7 @@ mod tests {
                 },
                 server: ServerConfig {
                     host: "localhost".to_string(),
-                    port: 50051,
+                    port: 9876,
                 }
             }
         )
