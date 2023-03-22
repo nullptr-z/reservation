@@ -11,7 +11,7 @@ postgres=# create user zheng with password 'z';
 CREATE ROLE
 postgres=# create database zheng owner zheng;
 CREATE DATABASE
-postgres=# grant all privileges on database zheng to zheng;
+postgres=# grant all privileges on database zheng to zheng; -- 数据名称，最好使用你的项目名称
 GRANT
 postgres=# \q
 
