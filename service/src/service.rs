@@ -93,11 +93,24 @@ impl ReservationService for RsvpService {
 }
 
 mod tests {
+    use std::sync::Arc;
+
     use abi::{
         reservation_service_server::ReservationService, Config, Reservation, ReserveRequest,
     };
 
     use crate::RsvpService;
+
+    struct TestConfig {
+        config: Arc<Config>,
+    }
+
+    impl Drop for TestConfig {
+        fn drop(&mut self) {
+            let url=self.config.db.url();
+            let conn =sqlx::PgConnection::connect(&url)
+        }
+    }
 
     #[tokio::test]
     async fn rpc_reserve_should_work() {
@@ -111,9 +124,12 @@ mod tests {
             "waiting for you",
         );
         let request = tonic::Request::new(ReserveRequest {
-            reservation: Some(reservation),
+            reservation: Some(reservation.clone()),
         });
         let response = service.reserve(request).await.unwrap();
-        assert!(response.into_inner().reservation.is_some());
+        let reservation1 = response.into_inner().reservation;
+        assert!(reservation1.is_some());
+        assert_eq!(reservation1.clone().unwrap(), reservation);
+        assert_eq!(reservation, reservation1.unwrap());
     }
 }
