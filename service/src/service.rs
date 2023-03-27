@@ -93,28 +93,91 @@ impl ReservationService for RsvpService {
 }
 
 mod tests {
-    use std::sync::Arc;
-
+    use crate::RsvpService;
     use abi::{
         reservation_service_server::ReservationService, Config, Reservation, ReserveRequest,
     };
+    use lazy_static::lazy_static;
+    use sqlx::{sqlx_macros::migrate, types::Uuid, Connection, Executor, PgConnection};
+    use std::{sync::Arc, thread};
+    use tokio::runtime::Runtime;
 
-    use crate::RsvpService;
+    lazy_static! {
+        static ref TEST_RT: Runtime = Runtime::new().unwrap();
+    }
 
     struct TestConfig {
         config: Arc<Config>,
     }
 
+    impl std::ops::Deref for TestConfig {
+        type Target = Config;
+
+        fn deref(&self) -> &Self::Target {
+            &self.config
+        }
+    }
+
+    impl TestConfig {
+        pub fn new() -> Self {
+            let mut config = Config::load("../service/fixtures/config.yml").unwrap();
+
+            let uuid = Uuid::new_v4();
+            let dbname = format!("test_{}", uuid);
+            config.db.dbname = dbname.clone();
+
+            let server_url = config.db.server_url();
+            let url = config.db.url();
+
+            thread::spawn(move || {
+                TEST_RT.block_on(async move {
+                    // use server url to create database
+                    let mut conn = PgConnection::connect(&server_url).await.unwrap();
+                    conn.execute(format!(r#"CREATE DATABASE "{}""#, dbname).as_str())
+                        .await
+                        .expect("Error while querying the reservation database");
+
+                    // now connect to test database for migration
+                    let mut conn = PgConnection::connect(&url).await.unwrap();
+                    migrate!("../migrations").run(&mut conn).await.unwrap();
+                });
+            })
+            .join()
+            .expect("Error thread create database ");
+
+            Self {
+                config: Arc::new(config),
+            }
+        }
+    }
+
     impl Drop for TestConfig {
         fn drop(&mut self) {
-            let url=self.config.db.url();
-            let conn =sqlx::PgConnection::connect(&url)
+            let server_url = self.config.db.server_url();
+            let dbname = self.config.db.dbname.clone();
+            // drop 时删除数据库
+            thread::spawn(move || {
+                TEST_RT.block_on(async move {
+                    let mut conn = sqlx::PgConnection::connect(&server_url).await.unwrap();
+                    // terminate existing connection`中断现有连接
+                    sqlx::query(&format!(r#"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{}'"#,dbname))
+                    .execute(&mut conn)
+                    .await
+                    .expect("Terminal all other connections");
+
+                    conn.execute(format!(r#"DROP DATABASE "{}""#, dbname).as_str())
+                        .await
+                        .expect("Error while querying the reservation database");
+                });
+            })
+            .join()
+            .expect("Error thread drop database ");
         }
     }
 
     #[tokio::test]
     async fn rpc_reserve_should_work() {
-        let config = Config::load("../server/fixtures/config.json").unwrap();
+        let config = TestConfig::new();
         let service = RsvpService::from_config(&config).await.unwrap();
         let reservation = Reservation::new_pending(
             "zz id",
@@ -129,7 +192,13 @@ mod tests {
         let response = service.reserve(request).await.unwrap();
         let reservation1 = response.into_inner().reservation;
         assert!(reservation1.is_some());
-        assert_eq!(reservation1.clone().unwrap(), reservation);
-        assert_eq!(reservation, reservation1.unwrap());
+        let reservation1 = reservation1.unwrap();
+        assert_eq!(reservation1.user_id, reservation.user_id);
+        assert_eq!(reservation1.resource_id, reservation.resource_id);
+        assert_eq!(reservation1.start, reservation.start);
+        assert_eq!(reservation1.end, reservation.end);
+        assert_eq!(reservation1.note, reservation.note);
+        assert_eq!(reservation1.status, reservation.status);
+        drop(service);
     }
 }
