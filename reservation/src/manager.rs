@@ -1,7 +1,8 @@
 use crate::*;
-use sqlx::{postgres::PgPoolOptions, Row};
+use sqlx::{postgres::PgPoolOptions, Either, Row};
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
-use tracing::info;
+use tracing::{info, warn};
 
 impl ReservationManager {
     pub fn new(pool: sqlx::PgPool) -> Self {
@@ -96,7 +97,7 @@ impl Rsvp for ReservationManager {
     async fn query(
         &self,
         query: abi::ReservationQuery,
-    ) -> Result<mpsc::Receiver<abi::Reservation>, Error> {
+    ) -> mpsc::Receiver<Result<abi::Reservation, Error>> {
         let time_range = query.get_timespan();
         let status = ReservationStatus::from_i32(query.status).unwrap();
         let pool = self.pool.clone();
@@ -113,13 +114,19 @@ impl Rsvp for ReservationManager {
             .bind(query.page)
             .bind(query.page_size)
             .fetch_many(&pool);
-            while let Some(Ok(ret)) = rsvps.next().await {
+            while let Some(ret) = rsvps.next().await {
                 match ret {
-                    sqlx::Either::Left(r) => {
+                    Ok(Either::Left(r)) => {
                         info!("Query result: {:?}", r);
                     }
-                    sqlx::Either::Right(r) => {
-                        if tx.send(r).await.is_err() {
+                    Ok(Either::Right(r)) => {
+                        if tx.send(Ok(r)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        warn!("Query result error: {:?}", err);
+                        if tx.send(Err(err.into())).await.is_err() {
                             break;
                         }
                     }
@@ -127,7 +134,7 @@ impl Rsvp for ReservationManager {
             }
         });
 
-        Ok(rx)
+        rx
     }
 
     async fn filter(
@@ -269,8 +276,8 @@ mod tests {
             .unwrap();
 
         println!("query--------{:?}", query);
-        let mut rx = manager.query(query).await.unwrap();
-        assert_eq!(rx.recv().await, Some(rsvp.clone()))
+        let mut rx = manager.query(query).await;
+        assert_eq!(rx.recv().await, Some(Ok(rsvp)))
     }
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]

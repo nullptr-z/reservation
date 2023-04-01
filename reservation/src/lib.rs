@@ -29,7 +29,7 @@ pub trait Rsvp {
     async fn query(
         &self,
         query: abi::ReservationQuery,
-    ) -> Result<mpsc::Receiver<abi::Reservation>, Error>;
+    ) -> mpsc::Receiver<Result<abi::Reservation, Error>>;
     // To query reservation order by id
     async fn filter(
         &self,

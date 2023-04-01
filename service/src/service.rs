@@ -1,14 +1,40 @@
+use std::{pin::Pin, task::Poll};
+
 use abi::{reservation_service_server::ReservationService, *};
+use futures::Stream;
 use reservation::{ReservationManager, Rsvp};
+use tokio::sync::mpsc;
 use tonic::*;
 
-use crate::{FilterResponseStream, ReservationStream, RsvpService};
+use crate::{ReservationStream, RsvpService, TonicReceiverStream};
 
 impl RsvpService {
     pub async fn from_config(config: &Config) -> Result<Self, Error> {
         Ok(Self {
             manager: ReservationManager::from_config(&config.db).await?,
         })
+    }
+}
+
+impl<T> TonicReceiverStream<T> {
+    pub fn new(inner: mpsc::Receiver<Result<T, Error>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl<T> Stream for TonicReceiverStream<T> {
+    type Item = Result<T, Status>;
+
+    fn poll_next(
+        mut self: Pin<&mut TonicReceiverStream<T>>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        match self.inner.poll_recv(cx) {
+            Poll::Ready(Some(Ok(item))) => Poll::Ready(Some(Ok(item))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e.into()))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -82,9 +108,13 @@ impl ReservationService for RsvpService {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::QueryStream>, Status> {
-        // let request = request.into_inner();
-        // let reservation = self.manager.query(request.query.unwrap()).await?;
-        // Ok(Response::new(ReservationStream { reservation }))
+        let request = request.into_inner();
+        if request.query.is_none() {
+            return Err(Status::invalid_argument("missing query params"));
+        }
+        let rsvps = self.manager.query(request.query.unwrap()).await;
+        let stream = TonicReceiverStream::new(rsvps);
+        Ok(Response::new(Box::pin(stream)))
     }
     /// Server streaming response type for the filter method.
     /// 查询时通过ID进行排序
