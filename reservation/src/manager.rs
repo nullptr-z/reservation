@@ -1,5 +1,7 @@
 use crate::*;
 use sqlx::{postgres::PgPoolOptions, Row};
+use tokio_stream::StreamExt;
+use tracing::info;
 
 impl ReservationManager {
     pub fn new(pool: sqlx::PgPool) -> Self {
@@ -27,7 +29,7 @@ impl Rsvp for ReservationManager {
         let status = ReservationStatus::from_i32(rsvp.status).unwrap_or(ReservationStatus::Pending);
 
         let id:i64 = sqlx::query(
-            "INSERT INTO rsvp.reservation (user_id, resource_id, timespan, note ,status) VALUES ($1, $2, $3::tstzrange, $4, $5::rsvp.reservation_status) RETURNING id"
+            "INSERT INTO rsvp.reservation (user_id, resource_id, timespan, note ,status) VALUES ($1, $2, $3, $4, $5::rsvp.reservation_status) RETURNING id"
         )
         .bind(rsvp.user_id.clone())
         .bind(rsvp.resource_id.clone())
@@ -39,7 +41,6 @@ impl Rsvp for ReservationManager {
         .get(0);
 
         rsvp.id = id;
-
         Ok(rsvp)
     }
 
@@ -70,14 +71,15 @@ impl Rsvp for ReservationManager {
         Ok(rsvp)
     }
 
-    async fn delete(&self, id: ReservationId) -> Result<(), Error> {
+    async fn delete(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
         // delete the reservation by id
         id.validate().unwrap();
-        sqlx::query("DELETE FROM rsvp.reservation WHERE id = $1 RETURNING *")
-            .bind(id)
-            .fetch_one(&self.pool)
-            .await?;
-        Ok(())
+        let rsvp: Reservation =
+            sqlx::query_as("DELETE FROM rsvp.reservation WHERE id = $1 RETURNING *")
+                .bind(id)
+                .fetch_one(&self.pool)
+                .await?;
+        Ok(rsvp)
     }
 
     async fn get(&self, id: ReservationId) -> Result<abi::Reservation, Error> {
@@ -91,24 +93,41 @@ impl Rsvp for ReservationManager {
         Ok(rsvp)
     }
 
-    async fn query(&self, query: abi::ReservationQuery) -> Result<Vec<abi::Reservation>, Error> {
+    async fn query(
+        &self,
+        query: abi::ReservationQuery,
+    ) -> Result<mpsc::Receiver<abi::Reservation>, Error> {
         let time_range = query.get_timespan();
         let status = ReservationStatus::from_i32(query.status).unwrap();
+        let pool = self.pool.clone();
+        let (tx, rx) = mpsc::channel(128);
+        tokio::spawn(async move {
+            let mut rsvps = sqlx::query_as(
+                "SELECT * FROM rsvp.query($1, $2, $3, $4::rsvp.reservation_status, $5, $6, $7)",
+            )
+            .bind(str_to_option(&query.user_id))
+            .bind(str_to_option(&query.resource_id))
+            .bind(time_range)
+            .bind(status.to_string())
+            .bind(query.desc)
+            .bind(query.page)
+            .bind(query.page_size)
+            .fetch_many(&pool);
+            while let Some(Ok(ret)) = rsvps.next().await {
+                match ret {
+                    sqlx::Either::Left(r) => {
+                        info!("Query result: {:?}", r);
+                    }
+                    sqlx::Either::Right(r) => {
+                        if tx.send(r).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
 
-        let rsvps = sqlx::query_as(
-            "SELECT * FROM rsvp.query($1, $2, $3, $4::rsvp.reservation_status, $5, $6, $7)",
-        )
-        .bind(str_to_option(&query.user_id))
-        .bind(str_to_option(&query.resource_id))
-        .bind(time_range)
-        .bind(status.to_string())
-        .bind(query.desc)
-        .bind(query.page)
-        .bind(query.page_size)
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(rsvps)
+        Ok(rx)
     }
 
     async fn filter(
@@ -241,19 +260,17 @@ mod tests {
 
         let rsvp = create_alice_reservation(&manager).await;
         let query = ReservationQueryBuilder::default()
-            .user_id(rsvp.user_id)
-            // .resource_id(rsvp.resource_id)
-            .start("2023-03-10 12:00:00".parse::<Timestamp>().unwrap())
-            .end("2023-03-18 12:00:00".parse::<Timestamp>().unwrap())
+            .user_id(rsvp.user_id.clone())
+            .resource_id(rsvp.resource_id.clone())
+            .start(rsvp.start.clone().unwrap())
+            .end(rsvp.end.clone().unwrap())
             .status(ReservationStatus::Pending)
             .build()
             .unwrap();
 
-        println!("query：{:?}", query);
-        let query = manager.query(query).await.unwrap();
-
-        println!("query: {:?}", query);
-        assert!(query.len() > 0)
+        println!("query--------{:?}", query);
+        let mut rx = manager.query(query).await.unwrap();
+        assert_eq!(rx.recv().await, Some(rsvp.clone()))
     }
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
@@ -280,8 +297,8 @@ mod tests {
             manager,
             "test uid",
             "ocean-view-room-713",
-            "2023-03-11 12:00:00",
-            "2023-03-12 12:00:00",
+            "2023-03-11 12:00:00Z",
+            "2023-03-13 12:00:00Z",
             "i'm today evening to check in",
         )
         .await
@@ -293,8 +310,8 @@ mod tests {
             manager,
             "zzz id",
             "ocean-view-room-713",
-            "2023-03-11 12:00:00",
-            "2023-03-13 12:00:00",
+            "2023-03-11 12:00:00Z",
+            "2023-03-13 12:00:00Z",
             "用于冲突测试",
         )
         .await?;
@@ -311,8 +328,10 @@ mod tests {
         note: &str,
     ) -> Reservation {
         let rsvp = abi::Reservation::new_pending(uid, rid, start, end, note);
+        println!("rsvp{:?}", rsvp);
 
         let rsvp = manager.reserve(rsvp).await.unwrap();
+        println!("rsvp{:?}", rsvp);
 
         rsvp
     }

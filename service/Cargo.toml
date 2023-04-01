@@ -9,7 +9,6 @@ edition = "2021"
 abi = { version = "0.1.0", path = "../abi" }
 anyhow = "1.0.70"
 futures = { version = "0.3.27", default-features = false }
-lazy_static = "1.4.0"
 reservation = { version = "0.1.0", path = "../reservation" }
 serde = { version = "1.0.157", features = ["derive"] }
 serde_yaml = "0.9.19"
@@ -17,3 +16,7 @@ shellexpand = "3.0.0"
 sqlx = { version = "0.6.3"}
 tokio = { version = "1.26.0", features = ["full"] }
 tonic = { version = "0.8.3", features = ["tokio-rustls", "gzip"] }
+db-sqlx-tester = "0.1.1"
+tokio-stream = "0.1.12"
+
+[dev-dependencies]

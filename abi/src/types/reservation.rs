@@ -2,20 +2,20 @@ use crate::{
     types::{reservation_date::NaiveDateRange, reservation_status::RsvpStatus},
     *,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, Utc};
 use sqlx::{
     postgres::{types::PgRange, PgRow},
     FromRow, Row,
 };
 
-use super::validate_range;
+use super::{get_timespan, validate_range};
 
 impl Reservation {
     pub fn new_pending<'a>(
         user_id: impl Into<String>,
         resource_id: impl Into<String>,
-        start: impl Into<&'a str>,
-        end: impl Into<&'a str>,
+        start: &str,
+        end: &str,
         note: impl Into<String>,
     ) -> Self {
         Self {
@@ -23,8 +23,10 @@ impl Reservation {
             resource_id: resource_id.into(),
             status: ReservationStatus::Pending as i32,
             user_id: user_id.into(),
-            start: Some(convert_str_to_timestamp(start.into())),
-            end: Some(convert_str_to_timestamp(end.into())),
+            start: Some(convert_to_timestamp(
+                &start.parse::<DateTime<Utc>>().unwrap(),
+            )),
+            end: Some(convert_to_timestamp(&end.parse::<DateTime<Utc>>().unwrap())),
             note: note.into(),
         }
     }
@@ -41,7 +43,11 @@ impl Reservation {
         validate_range(self.start.as_ref(), self.end.as_ref())
     }
 
-    pub fn get_timespan(&self) -> String {
+    pub fn get_timespan(&self) -> PgRange<DateTime<Utc>> {
+        get_timespan(self.start.as_ref(), self.end.as_ref())
+    }
+
+    pub fn get_timespan_string(&self) -> String {
         let start = convert_timestamp_to_naiveDt(self.start.as_ref().unwrap());
         let end = convert_timestamp_to_naiveDt(self.end.as_ref().unwrap());
 
@@ -53,7 +59,6 @@ impl FromRow<'_, PgRow> for Reservation {
     fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
         // `PgRange<DateTime<Utc>>` 与 Postgres `TSTZRANGE` 对应的类型
         let time_range: PgRange<DateTime<Utc>> = row.get("timespan");
-        println!("time_range->{:?}", time_range);
         let n_d_r: NaiveDateRange = time_range.into();
 
         let status: RsvpStatus = row.get("status");

@@ -73,7 +73,7 @@ message UpdateResponse {
 // To change a reservation from pending toconfirmed, send a ConfirmRequest
 // 要将Reservation从待定更为确认,请发送确认请求(ConfirmRequest)
 message ConfirmRequest {
-  string id =1;
+  int64 id =1;
 }
 
 // Confirmed reservation will be returned in ConfirmResponse
@@ -85,7 +85,7 @@ message ConfirmResponse{
 // To cancel a reservation, send a CancelRequest
 // 要取消Reservation，请发送取消请求(CancelRequest)
 message CancelRequest {
-  string id =1;
+  int64 id =1;
 }
 
 // Cancel reservation will be returned in CancelResponse
@@ -148,7 +148,7 @@ message FilterPager{
 }
 
 message FilterResponse {
-  repeated Reservation reserved = 1;
+  repeated Reservation Reservations = 1;
   FilterPager pager = 2;
 }
 
@@ -175,7 +175,7 @@ message ReservationFilter{
 }
 
 message FilterRequest{
-  ReservationFilter queru = 1;
+  ReservationFilter filter = 1;
 }
 
 
@@ -214,7 +214,7 @@ service ReservationService {
   // 通过资源id、用户id、状态、开始时间、结束时间 查询预约
   rpc Query(QueryRequest) returns (stream Reservation);
   // 查询时通过ID进行排序
-  rpc filter(FilterRequest) returns (stream FilterResponse);
+  rpc filter(FilterRequest) returns (FilterResponse);
   // an other system could moniton newly added/confirmed/cancelled reservation
   // 另一个系统可以监控新添加/确认/取消的预订
   rpc listen(ListenRequest) returns (stream Reservation);

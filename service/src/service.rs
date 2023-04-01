@@ -1,5 +1,4 @@
 use abi::{reservation_service_server::ReservationService, *};
-use anyhow::Result;
 use reservation::{ReservationManager, Rsvp};
 use tonic::*;
 
@@ -38,7 +37,11 @@ impl ReservationService for RsvpService {
         &self,
         request: Request<ConfirmRequest>,
     ) -> Result<Response<ConfirmResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reserevation = self.manager.update_status(request.id).await?;
+        Ok(Response::new(ConfirmResponse {
+            reservation: Some(reserevation),
+        }))
     }
     /// update the reservation note
     /// 更新这个预定的注释`note`
@@ -46,6 +49,8 @@ impl ReservationService for RsvpService {
         &self,
         request: Request<UpdateRequest>,
     ) -> Result<Response<UpdateResponse>, Status> {
+        // let request = request.into_inner();
+        // let reservation = self.manager.update(request.id);
         todo!()
     }
     /// cancle a reservation
@@ -54,12 +59,20 @@ impl ReservationService for RsvpService {
         &self,
         request: Request<CancelRequest>,
     ) -> Result<Response<CancelResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.delete(request.id).await?;
+        Ok(Response::new(CancelResponse {
+            reservation: Some(reservation),
+        }))
     }
     /// get a reservation by id
     /// 根据ID获取预定
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        todo!()
+        let request = request.into_inner();
+        let reservation = self.manager.get(request.id).await?;
+        Ok(Response::new(GetResponse {
+            reservation: Some(reservation),
+        }))
     }
     /// Server streaming response type for the Query method.
     type QueryStream = ReservationStream;
@@ -69,16 +82,27 @@ impl ReservationService for RsvpService {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::QueryStream>, Status> {
-        todo!()
+        // let request = request.into_inner();
+        // let reservation = self.manager.query(request.query.unwrap()).await?;
+        // Ok(Response::new(ReservationStream { reservation }))
     }
     /// Server streaming response type for the filter method.
-    type filterStream = FilterResponseStream;
     /// 查询时通过ID进行排序
     async fn filter(
         &self,
         request: Request<FilterRequest>,
-    ) -> Result<Response<Self::filterStream>, Status> {
-        todo!()
+    ) -> Result<Response<FilterResponse>, Status> {
+        let request = request.into_inner();
+
+        if request.filter.is_none() {
+            return Err(Status::invalid_argument("missing filter params"));
+        }
+
+        let (pager, reservations) = self.manager.filter(request.filter.unwrap()).await?;
+        Ok(Response::new(FilterResponse {
+            pager: Some(pager),
+            reservations,
+        }))
     }
     /// Server streaming response type for the listen method.
     type listenStream = ReservationStream;
@@ -93,24 +117,36 @@ impl ReservationService for RsvpService {
 }
 
 mod tests {
+    use std::ops::Deref;
+
     use crate::RsvpService;
     use abi::{
         reservation_service_server::ReservationService, Config, Reservation, ReserveRequest,
     };
-    use lazy_static::lazy_static;
-    use sqlx::{sqlx_macros::migrate, types::Uuid, Connection, Executor, PgConnection};
-    use std::{sync::Arc, thread};
-    use tokio::runtime::Runtime;
-
-    lazy_static! {
-        static ref TEST_RT: Runtime = Runtime::new().unwrap();
-    }
+    use db_sqlx_tester::TestDb;
 
     struct TestConfig {
-        config: Arc<Config>,
+        #[allow(dead_code)]
+        tdb: TestDb,
+        config: Config,
     }
 
-    impl std::ops::Deref for TestConfig {
+    impl TestConfig {
+        pub fn new() -> Self {
+            let mut config = Config::load("fixtures/config.yml").unwrap();
+            let tdb = TestDb::new(
+                &config.db.host,
+                config.db.port,
+                &config.db.user,
+                &config.db.password,
+                "../migrations",
+            );
+            config.db.dbname = tdb.dbname.clone();
+            Self { tdb, config }
+        }
+    }
+
+    impl Deref for TestConfig {
         type Target = Config;
 
         fn deref(&self) -> &Self::Target {
@@ -118,66 +154,9 @@ mod tests {
         }
     }
 
-    impl TestConfig {
-        pub fn new() -> Self {
-            let mut config = Config::load("../service/fixtures/config.yml").unwrap();
-
-            let uuid = Uuid::new_v4();
-            let dbname = format!("test_{}", uuid);
-            config.db.dbname = dbname.clone();
-
-            let server_url = config.db.server_url();
-            let url = config.db.url();
-
-            thread::spawn(move || {
-                TEST_RT.block_on(async move {
-                    // use server url to create database
-                    let mut conn = PgConnection::connect(&server_url).await.unwrap();
-                    conn.execute(format!(r#"CREATE DATABASE "{}""#, dbname).as_str())
-                        .await
-                        .expect("Error while querying the reservation database");
-
-                    // now connect to test database for migration
-                    let mut conn = PgConnection::connect(&url).await.unwrap();
-                    migrate!("../migrations").run(&mut conn).await.unwrap();
-                });
-            })
-            .join()
-            .expect("Error thread create database ");
-
-            Self {
-                config: Arc::new(config),
-            }
-        }
-    }
-
-    impl Drop for TestConfig {
-        fn drop(&mut self) {
-            let server_url = self.config.db.server_url();
-            let dbname = self.config.db.dbname.clone();
-            // drop 时删除数据库
-            thread::spawn(move || {
-                TEST_RT.block_on(async move {
-                    let mut conn = sqlx::PgConnection::connect(&server_url).await.unwrap();
-                    // terminate existing connection`中断现有连接
-                    sqlx::query(&format!(r#"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{}'"#,dbname))
-                    .execute(&mut conn)
-                    .await
-                    .expect("Terminal all other connections");
-
-                    conn.execute(format!(r#"DROP DATABASE "{}""#, dbname).as_str())
-                        .await
-                        .expect("Error while querying the reservation database");
-                });
-            })
-            .join()
-            .expect("Error thread drop database ");
-        }
-    }
-
-    #[tokio::test]
     async fn rpc_reserve_should_work() {
-        let config = TestConfig::new();
+        let mut config = TestConfig::new();
+
         let service = RsvpService::from_config(&config).await.unwrap();
         let reservation = Reservation::new_pending(
             "zz id",
