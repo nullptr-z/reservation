@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+test_utils=[]
+
+[[test]]
+name="service"
+path="src/service.rs"
+requires-features = ["test_utils"]
 
 [dependencies]
 abi = { version = "0.1.0", path = "../abi" }

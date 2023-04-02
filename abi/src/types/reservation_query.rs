@@ -13,8 +13,8 @@ impl ReservationQuery {
         start: impl Into<String>,
         end: impl Into<String>,
         desc: bool,
-        page: i32,
-        page_size: i32,
+        page: i64,
+        page_size: i64,
     ) -> Self {
         Self {
             user_id: uid.into(),

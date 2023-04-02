@@ -168,7 +168,7 @@ impl Rsvp for ReservationManager {
         let has_prev = !rsvps.is_empty() && rsvps[0].id == filter.cursor;
         let start = if has_prev { 1 } else { 0 };
 
-        let has_next = (rsvps.len() - start) as i32 > page_size;
+        let has_next = (rsvps.len() - start) as i64 > page_size;
         let end = match has_next {
             true => rsvps.len() - 1,
             false => rsvps.len(),
