@@ -1,4 +1,5 @@
-use std::time::Duration;
+#[path = "../src/test_utils.rs"]
+mod test_utils;
 
 use abi::{
     reservation_service_client::ReservationServiceClient, Config, ConfirmRequest, FilterRequest,
@@ -9,16 +10,8 @@ use tokio::time;
 
 #[tokio::test]
 async fn grpc_server_should_work() {
-    let config = Config::load("fixtures/config.yml").unwrap();
-    let config_cloned = config.clone();
-    tokio::spawn(async move {
-        start_server(&config_cloned).await.unwrap();
-    });
-    time::sleep(Duration::from_millis(100)).await;
-
-    let mut client = ReservationServiceClient::connect(config.server.url(false))
-        .await
-        .unwrap();
+    let tconfig = TestConfig::with_server_port(50000);
+    let mut client = get_test_client(&tconfig).await;
 
     // first we make a reservation
     let reservation = Reservation::new_pending(
