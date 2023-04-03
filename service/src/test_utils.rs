@@ -24,9 +24,9 @@ impl TestConfig {
     }
 
     pub fn with_server_port(prot: u16) -> Self {
-        todo!();
-        // let mut config = TestConfig::default();
-        // config.config.ser
+        let mut config = TestConfig::default();
+        config.config.server.port = prot;
+        config
     }
 }
 

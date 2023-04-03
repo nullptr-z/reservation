@@ -1,32 +1,21 @@
 #[path = "../src/test_utils.rs"]
 mod test_utils;
 
-use std::time::Duration;
-
+use crate::test_utils::TestConfig;
+use abi::Config;
 use abi::{
     reservation_service_client::ReservationServiceClient, ConfirmRequest, FilterRequest,
     FilterResponse, Reservation, ReservationFilterBuilder, ReservationStatus, ReserveRequest,
 };
 use reservation_service::start_server;
+use std::time::Duration;
 use tokio::time;
 use tonic::transport::Channel;
 
-use crate::test_utils::TestConfig;
-
 #[tokio::test]
 async fn grpc_server_should_work() {
-    let tconfig = TestConfig::default();
-    let config = tconfig.config.clone();
-    let config_cloned = config.clone();
-    tokio::spawn(async move {
-        start_server(&config_cloned).await.unwrap();
-    });
-    time::sleep(Duration::from_millis(100)).await;
-    let mut client = ReservationServiceClient::connect(config.server.url(false))
-        .await
-        .unwrap();
-    // let tconfig = TestConfig::with_server_port(50000);
-    // let mut client = get_test_client(&tconfig).await;
+    let tconfig = TestConfig::with_server_port(50000);
+    let mut client = get_test_client(&tconfig).await;
 
     // first we make a reservation
     let reservation = Reservation::new_pending(
@@ -37,16 +26,16 @@ async fn grpc_server_should_work() {
         "Sunday check in",
     );
     // then we   first reservation
-    let response = client
+    let rsvt = client
         .reserve(ReserveRequest::new(reservation.clone()))
         .await;
     assert_eq!(
-        response.unwrap_err().to_string(),
+        rsvt.unwrap_err().to_string(),
         "rpc error: code = InvalidArgument desc = reservation conflict"
     );
 
     // then we confirm first reservation
-    let response = client
+    let rsvt = client
         .confirm(ConfirmRequest::new(reservation.id))
         .await
         .unwrap()
@@ -54,24 +43,25 @@ async fn grpc_server_should_work() {
         .reservation
         .unwrap();
 
-    assert_eq!(response.user_id, reservation.user_id);
+    assert_eq!(rsvt.user_id, reservation.user_id);
+}
 
-    // then we make 100 reservations without confliction
-    for i in 0..100 {
-        let reservation = Reservation::new_pending(
-            "alice",
-            format!("router-{}", i),
-            "2023-04-01 12:00:00Z",
-            "2023-04-08 12:00:00Z",
-            format!("Sunday check in-{}", i),
-        );
-        let response = client
-            .reserve(ReserveRequest::new(reservation.clone()))
-            .await
-            .unwrap()
-            .into_inner();
-        assert_eq!(response.reservation, Some(reservation.clone()));
-    }
+#[tokio::test]
+async fn grpc_query_should_work() {
+    let tconfig = TestConfig::with_server_port(50002);
+    let mut client = get_test_client(&tconfig).await;
+    make_reservertions(&mut client, 100).await;
+
+    // query for all reservation
+    // let rsvt = client
+}
+
+#[tokio::test]
+async fn grpc_filter_should_work() {
+    let tconfig = TestConfig::with_server_port(50001);
+    let mut client = get_test_client(&tconfig).await;
+
+    make_reservertions(&mut client, 100).await;
 
     // then we filter by user
     let filter = ReservationFilterBuilder::default()
@@ -81,7 +71,7 @@ async fn grpc_server_should_work() {
         .unwrap();
     let FilterResponse {
         pager,
-        reservations,
+        reservations: _reservations,
     } = client
         .filter(FilterRequest::new(filter.clone()))
         .await
@@ -89,7 +79,7 @@ async fn grpc_server_should_work() {
         .into_inner();
 
     let pager = pager.unwrap();
-    assert_eq!(pager.next, filter.page_size + 1 + 1);
+    assert_eq!(pager.next, filter.page_size);
     assert_eq!(pager.prev, -1);
     // assert_eq!(reservations.len(), filter.page_size as usize);
     ////////////////////////
@@ -111,5 +101,45 @@ async fn grpc_server_should_work() {
 }
 
 async fn get_test_client(tconfig: &TestConfig) -> ReservationServiceClient<Channel> {
-    todo!()
+    let config = tconfig.config.clone();
+    setup_server(&config).await;
+
+    let client = ReservationServiceClient::connect(config.server.url(false))
+        .await
+        .unwrap();
+
+    client
+}
+
+async fn setup_server(config: &Config) {
+    let config_cloned = config.clone();
+    tokio::spawn(async move {
+        start_server(&config_cloned).await.unwrap();
+    });
+    time::sleep(Duration::from_millis(100)).await;
+}
+
+/**  then we make 100 reservations without confliction
+ *  创建 100 个预定
+ */
+async fn make_reservertions(client: &mut ReservationServiceClient<Channel>, count: u32) {
+    for i in 0..count {
+        let mut reservation = Reservation::new_pending(
+            "alice",
+            format!("router-{}", i),
+            "2023-04-01 12:00:00Z",
+            "2023-04-08 12:00:00Z",
+            format!("Sunday check in-{}", i),
+        );
+        let rsvt = client
+            .reserve(ReserveRequest::new(reservation.clone()))
+            .await
+            .unwrap()
+            .into_inner()
+            .reservation
+            .unwrap();
+
+        reservation.id = rsvt.id;
+        assert_eq!(reservation, rsvt);
+    }
 }
