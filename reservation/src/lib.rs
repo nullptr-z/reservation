@@ -5,8 +5,8 @@ pub use async_trait::async_trait;
 pub use sqlx::PgPool;
 use tokio::sync::mpsc;
 
+/** 包裹一个 PgPool，以便在一个应用程序中分发共享数据库链接 */
 pub struct ReservationManager {
-    // postgres，可以在一个应用程序中分发共享数据库链接
     pool: PgPool,
 }
 

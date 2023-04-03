@@ -1,7 +1,7 @@
 mod service;
 
-#[cfg(test)]
-pub mod test_utils;
+// #[cfg(test)]
+mod test_utils;
 
 use abi::{reservation_service_server::ReservationServiceServer, Config, Reservation};
 use futures::Stream;

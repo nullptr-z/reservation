@@ -1,12 +1,10 @@
-use std::{pin::Pin, task::Poll};
-
+use crate::{ReservationStream, RsvpService, TonicReceiverStream};
 use abi::{reservation_service_server::ReservationService, *};
 use futures::Stream;
 use reservation::{ReservationManager, Rsvp};
+use std::{pin::Pin, task::Poll};
 use tokio::sync::mpsc;
 use tonic::*;
-
-use crate::{ReservationStream, RsvpService, TonicReceiverStream};
 
 impl RsvpService {
     pub async fn from_config(config: &Config) -> Result<Self, Error> {
@@ -146,13 +144,14 @@ impl ReservationService for RsvpService {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::TestConfig;
-    use abi::{reservation_service_server::ReservationService, Reservation, ReserveRequest};
+    use abi::{Reservation, ReserveRequest};
 
-    async fn rpc_reserve_should_work() {
-        let mut config = TestConfig::new();
+    async fn grpc_reserve_should_work() {
+        let mut config = TestConfig::default();
 
         let service = RsvpService::from_config(&config).await.unwrap();
         let reservation = Reservation::new_pending(

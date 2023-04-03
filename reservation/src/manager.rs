@@ -2,13 +2,16 @@ use crate::*;
 use sqlx::{postgres::PgPoolOptions, Either, Row};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
-use tracing::{info, warn};
+use tracing::{info, log::trace, warn};
 
 impl ReservationManager {
+    // 接受一个sqlx::PgPool，将它包裹起来
     pub fn new(pool: sqlx::PgPool) -> Self {
         Self { pool }
     }
 
+    // Get Pool<Postgres> through DbConfig configuration
+    // 通过DbConfig配置得到Pool<Postgres>
     pub async fn from_config(config: &DbConfig) -> Result<Self, Error> {
         let url = config.url();
         let pool = PgPoolOptions::default()
@@ -173,6 +176,12 @@ impl Rsvp for ReservationManager {
             true => rsvps.len() - 1,
             false => rsvps.len(),
         };
+        trace!(
+            "start: {:?} end: {:?} rsvp len: {}",
+            start,
+            end,
+            rsvps.len()
+        );
 
         let prev = if has_prev { rsvps[start - 1].id } else { -1 };
         let next = if has_next { rsvps[end - 1].id } else { -1 };
