@@ -2,11 +2,12 @@
 mod test_utils;
 
 use crate::test_utils::TestConfig;
-use abi::Config;
 use abi::{
     reservation_service_client::ReservationServiceClient, ConfirmRequest, FilterRequest,
     FilterResponse, Reservation, ReservationFilterBuilder, ReservationStatus, ReserveRequest,
 };
+use abi::{Config, QueryRequest, ReservationQueryBuilder};
+use futures::StreamExt;
 use reservation_service::start_server;
 use std::time::Duration;
 use tokio::time;
@@ -52,8 +53,20 @@ async fn grpc_query_should_work() {
     let mut client = get_test_client(&tconfig).await;
     make_reservertions(&mut client, 100).await;
 
-    // query for all reservation
-    // let rsvt = client
+    let query = ReservationQueryBuilder::default()
+        .user_id("zz id")
+        .build()
+        .unwrap();
+    // query al reservation
+    let mut rsvt = client
+        .query(QueryRequest::new(query))
+        .await
+        .unwrap()
+        .into_inner();
+
+    while let Some(Ok(rsvp)) = rsvt.next().await {
+        assert_eq!(rsvp.user_id, "zz id");
+    }
 }
 
 #[tokio::test]
@@ -104,9 +117,8 @@ async fn get_test_client(tconfig: &TestConfig) -> ReservationServiceClient<Chann
     let config = tconfig.config.clone();
     setup_server(&config).await;
 
-    let client = ReservationServiceClient::connect(config.server.url(false))
-        .await
-        .unwrap();
+    let dst = config.server.url(false);
+    let client = ReservationServiceClient::connect(dst).await.unwrap();
 
     client
 }

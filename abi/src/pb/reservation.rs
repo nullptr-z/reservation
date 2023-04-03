@@ -133,23 +133,15 @@ pub struct ReservationQuery {
     /// start time for the reservation query, if 0, use infinty start time
     /// 预定查询的起始时间, 如果为0，使用 infity start time
     #[prost(message, optional, tag = "4")]
-    #[builder(setter(into, strip_option))]
+    #[builder(setter(into, strip_option), default)]
     pub start: ::core::option::Option<::prost_types::Timestamp>,
     /// end time for the reservation query,if 0, use infinty end time
     /// 预定查询的结束时间,如 果为0，使用 infity end time
     #[prost(message, optional, tag = "5")]
-    #[builder(setter(into, strip_option))]
+    #[builder(setter(into, strip_option), default)]
     pub end: ::core::option::Option<::prost_types::Timestamp>,
-    /// current page for the query
-    #[prost(int64, tag = "6")]
-    #[builder(setter(into), default)]
-    pub page: i64,
-    /// page size for ther qeury
-    #[prost(int64, tag = "7")]
-    #[builder(setter(into), default = "10")]
-    pub page_size: i64,
     /// sort direction` 排序方向
-    #[prost(bool, tag = "8")]
+    #[prost(bool, tag = "6")]
     #[builder(setter(into), default)]
     pub desc: bool,
 }

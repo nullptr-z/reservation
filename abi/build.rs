@@ -46,7 +46,7 @@ fn main() {
                 "reservation.ReservationQuery.start",
                 "reservation.ReservationQuery.end",
             ],
-            &["#[builder(setter(into, strip_option))]"],
+            &["#[builder(setter(into, strip_option),default)]"],
         )
         .compile(&["protos/reservation.proto"], &["protos"])
         .unwrap();

@@ -5,20 +5,28 @@
 CREATE OR REPLACE FUNCTION rsvp.query(
   uid text,
   rid text,
-  during TSTZRANGE DEFAULT '(-infinity, infinity)'::TSTZRANGE,
+  _start timestamp with time zone,
+  _end timestamp with time zone,
   status rsvp.reservation_status DEFAULT 'pending',
-  is_desc bool DEFAULT FALSE,
+  is_desc bool DEFAULT FALSE
 ) RETURNS TABLE (LIKE rsvp.reservation) AS $$
 DECLARE
+  _during tstzrange;
   _sql text;
 BEGIN
+  -- if start or end is null, use infinity
+  _during := tstzrange(
+    COALESCE(_start, '-infinity'),
+    COALESCE(_end, 'infinity'),
+    '[)'
+  );
   -- format the query based on parameters`根据参数格式化查询
   _sql := format(
     'SELECT * FROM rsvp.reservation WHERE %L @> timespan AND status = %L AND %s ORDER BY lower(timespan) %s',
-    during,
+    _during,
     status,
     CASE
-      WHEN uid IS NULL AND rid IS NULL TH EN 'TRUE'
+      WHEN uid IS NULL AND rid IS NULL THEN 'TRUE'
       WHEN uid IS NULL THEN 'resource_id = ' || quote_literal(rid)
       WHEN rid IS NULL THEN 'user_id = ' || quote_literal(uid)
       ELSE 'user_id = ' || quote_literal(uid) || 'AND resource_id = ' || quote_literal(rid)

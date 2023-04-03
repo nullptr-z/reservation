@@ -13,8 +13,6 @@ impl ReservationQuery {
         start: impl Into<String>,
         end: impl Into<String>,
         desc: bool,
-        page: i64,
-        page_size: i64,
     ) -> Self {
         Self {
             user_id: uid.into(),
@@ -23,8 +21,6 @@ impl ReservationQuery {
             start: Some(convert_str_to_timestamp(&start.into())),
             end: Some(convert_str_to_timestamp(&end.into())),
             desc,
-            page,
-            page_size,
         }
     }
 

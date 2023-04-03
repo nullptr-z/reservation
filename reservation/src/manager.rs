@@ -101,21 +101,25 @@ impl Rsvp for ReservationManager {
         &self,
         query: abi::ReservationQuery,
     ) -> mpsc::Receiver<Result<abi::Reservation, Error>> {
-        let time_range = query.get_timespan();
+        // let time_range = query.get_timespan();
+        let start = query
+            .start
+            .map(|time| convert_timestamp_to_date_time(&time));
+        let end = query.end.map(|time| convert_timestamp_to_date_time(&time));
+
         let status = ReservationStatus::from_i32(query.status).unwrap();
         let pool = self.pool.clone();
         let (tx, rx) = mpsc::channel(128);
         tokio::spawn(async move {
             let mut rsvps = sqlx::query_as(
-                "SELECT * FROM rsvp.query($1, $2, $3, $4::rsvp.reservation_status, $5, $6, $7)",
+                "SELECT * FROM rsvp.query($1, $2, $3, $4, $5::rsvp.reservation_status, $6)",
             )
             .bind(str_to_option(&query.user_id))
             .bind(str_to_option(&query.resource_id))
-            .bind(time_range)
+            .bind(start)
+            .bind(end)
             .bind(status.to_string())
             .bind(query.desc)
-            .bind(query.page)
-            .bind(query.page_size)
             .fetch_many(&pool);
             while let Some(ret) = rsvps.next().await {
                 match ret {
