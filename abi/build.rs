@@ -17,12 +17,12 @@ fn main() {
         )
         .with_field_attributes(
             &[
-                "reservation.ReservationQuery.user_id",
-                "reservation.ReservationQuery.resource_id",
-                "reservation.ReservationQuery.status",
-                "reservation.ReservationQuery.desc",
-                "reservation.ReservationQuery.page",
-                // "reservation.ReservationQuery.page_size",
+                // "reservation.ReservationQuery.user_id",
+                // "reservation.ReservationQuery.resource_id",
+                // "reservation.ReservationQuery.status",
+                // "reservation.ReservationQuery.desc",
+                // "reservation.ReservationQuery.page",
+                "reservation.ReservationQuery.cursor",
             ],
             &["#[builder(setter(into), default)]"],
         )

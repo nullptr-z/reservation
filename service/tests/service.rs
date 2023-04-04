@@ -54,7 +54,7 @@ async fn grpc_query_should_work() {
     make_reservertions(&mut client, 100).await;
 
     let query = ReservationQueryBuilder::default()
-        .user_id("zz id")
+        .user_id("zz id".to_string())
         .build()
         .unwrap();
     // query al reservation

@@ -118,17 +118,14 @@ pub struct ReservationQuery {
     /// resource id, if empty, query all resources
     /// 预定资源查询ID, 如果ID为空则查询全部资源
     #[prost(string, tag = "1")]
-    #[builder(setter(into), default)]
     pub resource_id: ::prost::alloc::string::String,
     /// user id, if empty, query all users
     /// 预定用户查询ID，如果ID为空，查询全部用户
     #[prost(string, tag = "2")]
-    #[builder(setter(into), default)]
     pub user_id: ::prost::alloc::string::String,
     /// use status to filter result. If UNKNOWN, return all reservations
     /// 如果用户状态未知，返回他的所有预定
     #[prost(enumeration = "ReservationStatus", tag = "3")]
-    #[builder(setter(into), default)]
     pub status: i32,
     /// start time for the reservation query, if 0, use infinty start time
     /// 预定查询的起始时间, 如果为0，使用 infity start time
@@ -142,7 +139,6 @@ pub struct ReservationQuery {
     pub end: ::core::option::Option<::prost_types::Timestamp>,
     /// sort direction` 排序方向
     #[prost(bool, tag = "6")]
-    #[builder(setter(into), default)]
     pub desc: bool,
 }
 /// To query a reservation, send a QueryRequest

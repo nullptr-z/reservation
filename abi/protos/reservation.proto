@@ -143,7 +143,7 @@ message FilterResponse {
 }
 
 // To query a reservation, order by reservation id
-message ReservationFilter{
+message ReservationFilter {
   // resource id, if empty, query all resources
   // 预定资源查询ID, 如果ID为空则查询全部资源
   string resource_id =1;
@@ -157,7 +157,7 @@ message ReservationFilter{
   ReservationStatus status =3;
 
   // previous cursor
-  int64 cursor=4;
+   int64 cursor=4;
   // page size for the query
   int64 page_size=5;
   // sort direction` 排序方向

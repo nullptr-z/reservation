@@ -2,7 +2,7 @@ use crate::{
     types::{reservation_date::NaiveDateRange, reservation_status::RsvpStatus},
     *,
 };
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, Utc};
 use sqlx::{
     postgres::{types::PgRange, PgRow},
     FromRow, Row,

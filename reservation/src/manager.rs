@@ -284,7 +284,7 @@ mod tests {
             .resource_id(rsvp.resource_id.clone())
             .start(rsvp.start.clone().unwrap())
             .end(rsvp.end.clone().unwrap())
-            .status(ReservationStatus::Pending)
+            .status(ReservationStatus::Pending.into())
             .build()
             .unwrap();
 

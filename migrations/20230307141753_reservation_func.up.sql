@@ -64,7 +64,6 @@ DECLARE
   _sql text;
   _offset bigint;
 BEGIN
-
   -- if page_size is not between 10 an 100, set ii to 10
   IF page_size < 10 OR page_size > 100 THEN
     page_size := 10;
