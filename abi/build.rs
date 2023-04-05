@@ -15,6 +15,10 @@ fn main() {
             ],
             &["#[derive(derive_builder::Builder)]"], // 生产新的Builder对象，名字带有Builder后缀，
         )
+        .with_type_attributes(
+            &["reservation.ReservationFilter"],
+            &[r#"#[builder(build_fn(name = "private_build"))]"#], // 生产新的Builder对象，名字带有Builder后缀，
+        )
         .with_field_attributes(
             &[
                 // "reservation.ReservationQuery.user_id",

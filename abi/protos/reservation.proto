@@ -163,7 +163,7 @@ message ReservationFilter {
   ReservationStatus status =3;
 
   // previous cursor
-  ValueInt64 cursor = 4;
+  google.protobuf.Int64Value cursor = 4;
 
   // page size for the query
   int64 page_size=5;

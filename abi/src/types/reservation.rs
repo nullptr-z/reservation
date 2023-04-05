@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{borrow::Borrow, ops::Deref};
 
 use crate::{
     types::{reservation_date::NaiveDateRange, reservation_status::RsvpStatus},
@@ -78,5 +78,3 @@ impl FromRow<'_, PgRow> for Reservation {
         })
     }
 }
-
-impl Borrow for ValueInt64 {}

@@ -44,3 +44,7 @@ pub fn convert_to_timestamp(dt: &DateTime<Utc>) -> Timestamp {
         nanos: dt.timestamp_subsec_nanos() as _,
     }
 }
+
+pub fn str_to_datetime_utc(s: &str) -> DateTime<Utc> {
+    Utc.datetime_from_str(s, "%Y-%m-%d %H:%M:%S%.f%z").unwrap()
+}

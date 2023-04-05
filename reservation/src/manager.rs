@@ -114,8 +114,8 @@ impl Rsvp for ReservationManager {
             let mut rsvps = sqlx::query_as(
                 "SELECT * FROM rsvp.query($1, $2, $3, $4, $5::rsvp.reservation_status, $6)",
             )
-            .bind(str_to_option(&query.user_id))
-            .bind(str_to_option(&query.resource_id))
+            .bind(query.user_id)
+            .bind(query.resource_id)
             .bind(start)
             .bind(end)
             .bind(status.to_string())
@@ -149,22 +149,15 @@ impl Rsvp for ReservationManager {
         mut filter: ReservationFilter,
     ) -> Result<(FilterPager, Vec<abi::Reservation>), Error> {
         filter.normalize()?;
-        println!("filter:{:?}", filter);
 
         let sql = filter.to_sql()?;
 
         let rsvps: Vec<Reservation> = sqlx::query_as(&sql).fetch_all(&self.pool).await?;
+        let mut rsvps = rsvps.into_iter().collect();
 
-        let pager = filter.get_pager(&mut rsvps);
+        let pager = filter.get_pager(&mut rsvps)?;
 
-        Ok((pager, rsvps))
-    }
-}
-
-fn str_to_option(s: &str) -> Option<&str> {
-    match s.is_empty() {
-        true => None,
-        false => Some(s),
+        Ok((pager, rsvps.into_iter().collect()))
     }
 }
 
@@ -175,7 +168,6 @@ mod tests {
         convert_str_to_naiveDt, Reservation, ReservationConflict, ReservationConflictInfo,
         ReservationQueryBuilder, ReservationStatus, ReservationWindow,
     };
-    use prost_types::Timestamp;
 
     #[sqlx_database_tester::test(pool(variable = "migrated_pool", migrations = "../migrations"))]
     async fn reserve_should_work_for_validate_window() {
@@ -191,7 +183,6 @@ mod tests {
 
         let _rsvp = create_alice_reservation(&manager).await;
         let rsvp_err = create_try_reservation(&manager).await.unwrap_err();
-        println!("{:?}", rsvp_err);
 
         let info = ReservationConflictInfo::Parsed(ReservationConflict {
             new: ReservationWindow {
@@ -202,7 +193,7 @@ mod tests {
             old: ReservationWindow {
                 rid: "ocean-view-room-713".to_string(),
                 start: convert_str_to_naiveDt("2023-03-11 12:00:00"),
-                end: convert_str_to_naiveDt("2023-03-12 12:00:00"),
+                end: convert_str_to_naiveDt("2023-03-13 12:00:00"),
             },
         });
 
@@ -249,7 +240,6 @@ mod tests {
             .build()
             .unwrap();
 
-        println!("query--------{:?}", query);
         let mut rx = manager.query(query).await;
         assert_eq!(rx.recv().await, Some(Ok(rsvp)))
     }
@@ -261,15 +251,17 @@ mod tests {
         let rsvp = create_alice_reservation(&manager).await;
 
         let filter = ReservationFilterBuilder::default()
-            .user_id(rsvp.user_id)
+            .user_id(rsvp.user_id.clone())
             // .cursor(value)
             .status(ReservationStatus::Pending)
             .build()
             .unwrap();
 
         let (pager, rsvps) = manager.filter(filter).await.unwrap();
-        println!("pager:{:?}", pager);
-        assert!(rsvps.len() > 0)
+        assert!(rsvps.len() > 0);
+        assert_eq!(pager.prev, None);
+        assert_eq!(pager.next, None);
+        assert_eq!(rsvps[0], rsvp);
     }
 
     //#region 用于构造 Reservation 工具函数
@@ -309,10 +301,7 @@ mod tests {
         note: &str,
     ) -> Reservation {
         let rsvp = abi::Reservation::new_pending(uid, rid, start, end, note);
-        println!("rsvp{:?}", rsvp);
-
         let rsvp = manager.reserve(rsvp).await.unwrap();
-        println!("rsvp{:?}", rsvp);
 
         rsvp
     }

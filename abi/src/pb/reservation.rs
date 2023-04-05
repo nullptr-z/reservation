@@ -165,6 +165,7 @@ pub struct ValueInt64 {
 }
 /// To query a reservation, order by reservation id
 #[derive(derive_builder::Builder)]
+#[builder(build_fn(name = "private_build"))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReservationFilter {
@@ -186,7 +187,7 @@ pub struct ReservationFilter {
     /// previous cursor
     #[prost(message, optional, tag = "4")]
     #[builder(setter(into), default)]
-    pub cursor: ::core::option::Option<ValueInt64>,
+    pub cursor: ::core::option::Option<i64>,
     /// page size for the query
     #[prost(int64, tag = "5")]
     #[builder(setter(into), default = "10")]

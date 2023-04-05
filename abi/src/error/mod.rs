@@ -77,10 +77,7 @@ impl From<sqlx::Error> for Error {
                         // 最终呈现 ReservationWindow
                         Error::ConflictReservation(err.detail().unwrap().parse().unwrap())
                     }
-                    _ => {
-                        println!("{}: {:?}", err.code(), err);
-                        Error::DbError(sqlx::Error::Database(db_err))
-                    }
+                    _ => Error::DbError(sqlx::Error::Database(db_err)),
                 }
             }
             sqlx::Error::RowNotFound => Error::NotFound,
