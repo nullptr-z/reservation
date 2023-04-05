@@ -22,7 +22,6 @@ fn main() {
                 // "reservation.ReservationQuery.status",
                 // "reservation.ReservationQuery.desc",
                 // "reservation.ReservationQuery.page",
-                "reservation.ReservationQuery.cursor",
             ],
             &["#[builder(setter(into), default)]"],
         )
@@ -48,7 +47,7 @@ fn main() {
             ],
             &["#[builder(setter(into, strip_option),default)]"],
         )
-        .compile(&["protos/reservation.proto"], &["protos"])
+        .compile(&["reservation.proto"], &["protos"])
         .unwrap();
 
     // fs::remove_file("src/pb/google.protobuf.proto").unwrap();

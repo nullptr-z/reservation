@@ -146,55 +146,16 @@ impl Rsvp for ReservationManager {
 
     async fn filter(
         &self,
-        filter: ReservationFilter,
+        mut filter: ReservationFilter,
     ) -> Result<(FilterPager, Vec<abi::Reservation>), Error> {
-        // filter reservation by user id, resource id, status, and order by id
-        // let status =
-        //     ReservationStatus::from_i32(filter.status).unwrap_or(ReservationStatus::Pending);
-        let status = ReservationStatus::from_i32(filter.status).unwrap();
-
+        filter.normalize()?;
         println!("filter:{:?}", filter);
-        let page_size = if filter.page_size < 10 || filter.page_size > 100 {
-            10
-        } else {
-            filter.page_size
-        };
 
-        let rsvps: Vec<Reservation> = sqlx::query_as(
-            "SELECT * FROM rsvp.filter($1, $2, $3::rsvp.reservation_status, $4, $5, $6)",
-        )
-        .bind(str_to_option(&filter.user_id))
-        .bind(str_to_option(&filter.resource_id))
-        .bind(status.to_string())
-        .bind(filter.cursor)
-        .bind(filter.desc)
-        .bind(page_size)
-        .fetch_all(&self.pool)
-        .await?;
+        let sql = filter.to_sql()?;
 
-        let has_prev = !rsvps.is_empty() && rsvps[0].id == filter.cursor;
-        let start = if has_prev { 1 } else { 0 };
+        let rsvps: Vec<Reservation> = sqlx::query_as(&sql).fetch_all(&self.pool).await?;
 
-        let has_next = (rsvps.len() - start) as i64 > page_size;
-        let end = match has_next {
-            true => rsvps.len() - 1,
-            false => rsvps.len(),
-        };
-        trace!(
-            "start: {:?} end: {:?} rsvp len: {}",
-            start,
-            end,
-            rsvps.len()
-        );
-
-        let prev = if has_prev { rsvps[start - 1].id } else { -1 };
-        let next = if has_next { rsvps[end - 1].id } else { -1 };
-
-        let pager = FilterPager {
-            next,
-            prev,
-            total: 0,
-        };
+        let pager = filter.get_pager(&mut rsvps);
 
         Ok((pager, rsvps))
     }

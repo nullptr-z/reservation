@@ -157,6 +157,12 @@ pub struct FilterResponse {
     #[prost(message, optional, tag = "2")]
     pub pager: ::core::option::Option<FilterPager>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ValueInt64 {
+    #[prost(int64, tag = "1")]
+    pub value: i64,
+}
 /// To query a reservation, order by reservation id
 #[derive(derive_builder::Builder)]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -178,9 +184,9 @@ pub struct ReservationFilter {
     #[builder(setter(into), default)]
     pub status: i32,
     /// previous cursor
-    #[prost(int64, tag = "4")]
+    #[prost(message, optional, tag = "4")]
     #[builder(setter(into), default)]
-    pub cursor: i64,
+    pub cursor: ::core::option::Option<ValueInt64>,
     /// page size for the query
     #[prost(int64, tag = "5")]
     #[builder(setter(into), default = "10")]
@@ -194,12 +200,12 @@ pub struct ReservationFilter {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilterPager {
-    #[prost(int64, tag = "1")]
-    pub prev: i64,
-    #[prost(int64, tag = "2")]
-    pub next: i64,
-    #[prost(int64, tag = "3")]
-    pub total: i64,
+    #[prost(message, optional, tag = "1")]
+    pub prev: ::core::option::Option<i64>,
+    #[prost(message, optional, tag = "2")]
+    pub next: ::core::option::Option<i64>,
+    #[prost(message, optional, tag = "3")]
+    pub total: ::core::option::Option<i64>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -1,7 +1,9 @@
-syntax ="proto3";
+syntax = "proto3";
+
 package reservation;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
 // reservation status for a given time period -- 给定时间段的预订状态
 enum ReservationStatus {
@@ -142,6 +144,10 @@ message FilterResponse {
   FilterPager pager = 2;
 }
 
+message ValueInt64 {
+  int64 value = 1;
+}
+
 // To query a reservation, order by reservation id
 message ReservationFilter {
   // resource id, if empty, query all resources
@@ -157,18 +163,20 @@ message ReservationFilter {
   ReservationStatus status =3;
 
   // previous cursor
-   int64 cursor=4;
+  ValueInt64 cursor = 4;
+
   // page size for the query
   int64 page_size=5;
+
   // sort direction` 排序方向
   bool desc=6;
 }
 
 // filter pager info
-message FilterPager{
-  int64 prev=1;
-  int64 next=2;
-  int64 total=3;
+message FilterPager {
+  google.protobuf.Int64Value prev = 1;
+  google.protobuf.Int64Value next = 2;
+  google.protobuf.Int64Value total = 3;
 }
 
 message FilterRequest{
