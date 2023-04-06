@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
 use crate::{
-    Error, FilterPager, Normalizer, Reservation, ReservationFilter, ReservationFilterBuilder,
-    ReservationStatus, ToSql, Validate,
+    pager::Id, Error, FilterPager, Normalizer, Reservation, ReservationFilter,
+    ReservationFilterBuilder, ReservationStatus, ToSql, Validate,
 };
 
 impl ReservationFilterBuilder {
@@ -42,7 +42,7 @@ impl ReservationFilter {
         }
     }
 
-    pub fn get_pager(&self, data: &mut VecDeque<Reservation>) -> Result<FilterPager, Error> {
+    pub fn get_pager<T: Id>(&self, data: &mut VecDeque<T>) -> Result<FilterPager, Error> {
         let has_prev = self.cursor.is_some();
         let start = if has_prev { data.pop_front() } else { None };
 
@@ -50,8 +50,8 @@ impl ReservationFilter {
         let end = if has_next { data.pop_back() } else { None };
 
         let pager = FilterPager {
-            prev: start.map(|r| r.id),
-            next: end.map(|r| r.id),
+            prev: start.map(|r| r.id()),
+            next: end.map(|r| r.id()),
             // TODO: how to get total efficiently?
             total: None,
         };
@@ -124,6 +124,11 @@ impl ToSql for ReservationFilter {
 mod tests {
     use super::*;
     use crate::ReservationFilterBuilder;
+
+    #[test]
+    fn filter_should_generate_correct_sqls() {
+        todo!()
+    }
 
     #[test]
     fn filter_should_generate_correct_sql() {

@@ -1,8 +1,11 @@
 mod config;
 mod error;
+mod pager;
 mod pb;
 mod types;
 mod utils;
+
+use std::collections::VecDeque;
 
 pub use config::*;
 pub use error::*;
