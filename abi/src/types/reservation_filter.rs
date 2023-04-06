@@ -42,21 +42,22 @@ impl ReservationFilter {
         }
     }
 
-    pub fn get_pager<T: Id>(&self, data: &mut VecDeque<T>) -> Result<FilterPager, Error> {
-        let has_prev = self.cursor.is_some();
-        let start = if has_prev { data.pop_front() } else { None };
+    pub fn get_pager(&self, data: &mut VecDeque<Reservation>) -> Result<FilterPager, Error> {
+        todo!()
+        // let has_prev = self.cursor.is_some();
+        // let start = if has_prev { data.pop_front() } else { None };
 
-        let has_next = data.len() as i64 > self.page_size;
-        let end = if has_next { data.pop_back() } else { None };
+        // let has_next = data.len() as i64 > self.page_size;
+        // let end = if has_next { data.pop_back() } else { None };
 
-        let pager = FilterPager {
-            prev: start.map(|r| r.id()),
-            next: end.map(|r| r.id()),
-            // TODO: how to get total efficiently?
-            total: None,
-        };
+        // let pager = FilterPager {
+        //     prev: start.map(|r| r.id()),
+        //     next: end.map(|r| r.id()),
+        //     // TODO: how to get total efficiently?
+        //     total: None,
+        // };
 
-        Ok(pager)
+        // Ok(pager)
     }
 }
 
