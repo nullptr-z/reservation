@@ -1,4 +1,5 @@
 use crate::{
+    pager::Id,
     types::{reservation_date::NaiveDateRange, reservation_status::RsvpStatus},
     *,
 };
@@ -74,5 +75,11 @@ impl FromRow<'_, PgRow> for Reservation {
             end: Some(convert_naiveDt_to_timestamp(&n_d_r.end.unwrap())),
             note: row.get("note"),
         })
+    }
+}
+
+impl Id for Reservation {
+    fn id(&self) -> i64 {
+        self.id
     }
 }

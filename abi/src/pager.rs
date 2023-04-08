@@ -7,6 +7,7 @@ pub struct Pager {
     pub total: Option<i64>,
 }
 
+#[derive(Debug)]
 pub struct PageInfo {
     pub cursor: Option<i64>,
     pub page_size: i64,
@@ -41,14 +42,11 @@ impl Paginator for PageInfo {
             None
         };
 
-        let pager = Pager {
+        Pager {
             prev,
             next,
-            // TODO: how to get total efficiently?
             total: None,
-        };
-
-        pager
+        }
     }
 
     fn next_page(&self, pager: &Pager) -> Option<Self> {
@@ -77,16 +75,29 @@ impl Paginator for PageInfo {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub mod pager_test_utils {
+    use std::{collections::VecDeque, ops::RangeInclusive};
 
+    #[derive(Debug)]
     pub struct TestId(i64);
 
-    impl Id for TestId {
+    impl crate::pager::Id for TestId {
         fn id(&self) -> i64 {
             self.0
         }
     }
+
+    pub fn generate_test_ids(range: RangeInclusive<i64>) -> VecDeque<TestId> {
+        range.map(|i| TestId(i)).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::pager::pager_test_utils::generate_test_ids;
+
+    use super::*;
 
     #[test]
     fn paginator_should_work() {
@@ -99,7 +110,7 @@ mod tests {
 
         // assume we got 11 items
         // create 100 items
-        let mut items: VecDeque<TestId> = (1..=11).map(|i| TestId(i)).collect();
+        let mut items = generate_test_ids(1..=11);
         let pager = page.get_pager(&mut items);
         assert!(pager.prev.is_none());
         assert_eq!(pager.next, Some(10));
@@ -111,7 +122,7 @@ mod tests {
 
         // second page
         let page = page.next_page(&pager).unwrap();
-        let mut items: VecDeque<TestId> = (10..=21).map(|i| TestId(i)).collect();
+        let mut items = generate_test_ids(10..=21);
         let pager = page.get_pager(&mut items);
         assert_eq!(pager.prev, Some(11));
         assert_eq!(pager.next, Some(20));
@@ -122,7 +133,7 @@ mod tests {
 
         // third page
         let page = page.next_page(&pager).unwrap();
-        let mut items: VecDeque<TestId> = (20..=25).map(|i| TestId(i)).collect();
+        let mut items = generate_test_ids(20..=25);
         let pager = page.get_pager(&mut items);
         assert_eq!(pager.prev, Some(21));
         assert!(pager.next.is_none());

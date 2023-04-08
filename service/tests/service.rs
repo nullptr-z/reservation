@@ -51,7 +51,7 @@ async fn grpc_server_should_work() {
 async fn grpc_query_should_work() {
     let tconfig = TestConfig::with_server_port(50002);
     let mut client = get_test_client(&tconfig).await;
-    make_reservertions(&mut client, 100).await;
+    make_reservertions(&mut client, 25).await;
 
     let query = ReservationQueryBuilder::default()
         .user_id("zz id".to_string())
@@ -74,7 +74,7 @@ async fn grpc_filter_should_work() {
     let tconfig = TestConfig::with_server_port(50001);
     let mut client = get_test_client(&tconfig).await;
 
-    make_reservertions(&mut client, 100).await;
+    make_reservertions(&mut client, 25).await;
 
     // then we filter by user
     let filter = ReservationFilterBuilder::default()
@@ -84,7 +84,7 @@ async fn grpc_filter_should_work() {
         .unwrap();
     let FilterResponse {
         pager,
-        reservations: _reservations,
+        reservations,
     } = client
         .filter(FilterRequest::new(filter.clone()))
         .await
@@ -92,26 +92,40 @@ async fn grpc_filter_should_work() {
         .into_inner();
 
     let pager = pager.unwrap();
-    assert_eq!(pager.next.unwrap(), filter.page_size + 1);
+    assert_eq!(pager.next.unwrap(), filter.page_size);
     assert_eq!(pager.prev, None);
-    assert_eq!(pager.total, None);
+    assert_eq!(reservations.len(), filter.page_size as usize);
 
     ////////////////////////
-    // let mut next_filter = filter.clone();
-    // next_filter.cursor = pager.next;
-    // // then we get next page
-    // let FilterResponse {
-    //     pager,
-    //     reservations,
-    // } = client
-    //     .filter(FilterRequest::new(next_filter.clone()))
-    //     .await
-    //     .unwrap()
-    //     .into_inner();
-    // let pager = pager.unwrap();
-    // assert_eq!(pager.next, next_filter.cursor + filter.page_size);
-    // assert_eq!(pager.prev, next_filter.cursor - 1);
-    // assert_eq!(reservations.len(), filter.page_size as usize);
+    let mut filter = filter.next_page(&pager).unwrap();
+    // then we get next page
+    let FilterResponse {
+        pager,
+        reservations,
+    } = client
+        .filter(FilterRequest::new(filter.clone()))
+        .await
+        .unwrap()
+        .into_inner();
+    let pager = pager.unwrap();
+    assert_eq!(pager.next, filter.cursor.map(|v| v + filter.page_size));
+    assert_eq!(pager.prev, filter.cursor.map(|v| v + 1));
+    assert_eq!(reservations.len(), filter.page_size as usize);
+
+    // then we get next page (last page)
+    let filter = filter.next_page(&pager).unwrap();
+    let FilterResponse {
+        pager,
+        reservations,
+    } = client
+        .filter(FilterRequest::new(filter.clone()))
+        .await
+        .unwrap()
+        .into_inner();
+    let pager = pager.unwrap();
+    assert_eq!(pager.next, None);
+    assert_eq!(pager.prev, filter.cursor.map(|v| v + 1));
+    assert_eq!(reservations.len(), 5);
 }
 
 async fn get_test_client(tconfig: &TestConfig) -> ReservationServiceClient<Channel> {

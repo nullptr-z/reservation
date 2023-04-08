@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 
 use crate::{
-    pager::Id, Error, FilterPager, Normalizer, Reservation, ReservationFilter,
-    ReservationFilterBuilder, ReservationStatus, ToSql, Validate,
+    pager::{Id, PageInfo, Pager, Paginator},
+    Error, FilterPager, Normalizer, Reservation, ReservationFilter, ReservationFilterBuilder,
+    ReservationStatus, ToSql, Validate,
 };
 
 impl ReservationFilterBuilder {
@@ -13,6 +14,26 @@ impl ReservationFilterBuilder {
         filter.normalize()?;
 
         Ok(filter)
+    }
+}
+
+impl From<Pager> for FilterPager {
+    fn from(pager: Pager) -> Self {
+        Self {
+            prev: pager.prev,
+            next: pager.next,
+            total: pager.total,
+        }
+    }
+}
+
+impl From<&FilterPager> for Pager {
+    fn from(pager: &FilterPager) -> Self {
+        Self {
+            prev: pager.prev,
+            next: pager.next,
+            total: pager.total,
+        }
     }
 }
 
@@ -34,30 +55,33 @@ impl ReservationFilter {
         ReservationStatus::from_i32(self.status).unwrap()
     }
 
-    pub fn get_desc_str(&self) -> &str {
-        if self.desc {
-            "DESC"
-        } else {
-            "ASC"
+    pub fn get_pager<T: Id>(&self, data: &mut VecDeque<T>) -> FilterPager {
+        let page_info = self.page_info();
+        let pager = page_info.get_pager(data);
+
+        pager.into()
+    }
+
+    fn page_info(&self) -> PageInfo {
+        PageInfo {
+            cursor: self.cursor,
+            page_size: self.page_size,
+            desc: self.desc,
         }
     }
 
-    pub fn get_pager(&self, data: &mut VecDeque<Reservation>) -> Result<FilterPager, Error> {
-        todo!()
-        // let has_prev = self.cursor.is_some();
-        // let start = if has_prev { data.pop_front() } else { None };
-
-        // let has_next = data.len() as i64 > self.page_size;
-        // let end = if has_next { data.pop_back() } else { None };
-
-        // let pager = FilterPager {
-        //     prev: start.map(|r| r.id()),
-        //     next: end.map(|r| r.id()),
-        //     // TODO: how to get total efficiently?
-        //     total: None,
-        // };
-
-        // Ok(pager)
+    pub fn next_page(&self, pager: &FilterPager) -> Option<Self> {
+        let page_info = self.page_info();
+        let pager = pager.into();
+        let page_info = page_info.next_page(&pager);
+        page_info.map(|page| Self {
+            cursor: page.cursor,
+            page_size: page.page_size,
+            desc: page.desc,
+            resource_id: self.resource_id.clone(),
+            user_id: self.user_id.clone(),
+            status: self.status,
+        })
     }
 }
 
@@ -91,32 +115,33 @@ impl ToSql for ReservationFilter {
     fn to_sql(&self) -> Result<String, Error> {
         let middle_puls = if self.cursor.is_none() { 0 } else { 1 };
 
-        let mut sql = format!(
-            "SELECT * FROM rsvp.reservation WHERE status = '{}'::rsvp.reservation_status AND ",
-            self.get_status().to_string()
-        );
         let compare = match self.desc {
             true => "<=",
             false => ">=",
         };
-        sql.push_str(&format!("id {} {} AND ", compare, self.get_cursor()));
-        if self.user_id.is_empty() && self.resource_id.is_empty() {
-            sql.push_str("TRUE");
-        } else if self.resource_id.is_empty() {
-            sql.push_str(&format!("user_id = '{}'", self.user_id));
-        } else if self.user_id.is_empty() {
-            sql.push_str(&format!("resource_id = '{}'", self.resource_id));
-        } else {
-            sql.push_str(&format!(
+
+        let uid_rid_cond = match (self.user_id.is_empty(), self.resource_id.is_empty()) {
+            (true, true) => "TRUE".to_string(),
+            (false, true) => format!("user_id = '{}'", self.user_id),
+            (true, false) => format!("resource_id = '{}'", self.resource_id),
+            _ => format!(
                 "user_id = '{}' AND resource_id = '{}'",
                 self.user_id, self.resource_id
-            ));
-        }
-        sql.push_str(&format!(
-            " ORDER BY id {} LIMIT {}",
-            self.get_desc_str(),
+            ),
+        };
+
+        let direction = if self.desc { "DESC" } else { "ASC" };
+
+        let sql = format!(
+            "SELECT * FROM rsvp.reservation WHERE status = '{}'::rsvp.reservation_status AND id {} {} AND {} ORDER BY id {} LIMIT {}",
+            self.get_status().to_string(),
+            compare,
+            self.get_cursor(),
+            uid_rid_cond,
+            direction,
             self.page_size + 1 + middle_puls
-        ));
+        );
+
         Ok(sql)
     }
 }
@@ -124,13 +149,12 @@ impl ToSql for ReservationFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ReservationFilterBuilder;
+    use crate::{pager::pager_test_utils::generate_test_ids, ReservationFilterBuilder};
 
     #[test]
-    fn filter_should_generate_correct_sqls() {
-        todo!()
-    }
-
+    // fn filter_should_generate_correct_sqls() {
+    //     todo!()
+    // }
     #[test]
     fn filter_should_generate_correct_sql() {
         let filter = ReservationFilterBuilder::default()
@@ -177,5 +201,25 @@ mod tests {
         assert_eq!(sql,
             "SELECT * FROM rsvp.reservation WHERE status = 'pending'::rsvp.reservation_status AND id <= 10 AND user_id = 'zz id' ORDER BY id DESC LIMIT 12"
             );
+    }
+
+    #[test]
+    fn filter_with_pager_should_generate_correct_sql() {
+        let filter = ReservationFilterBuilder::default()
+            .resource_id("zz id")
+            .build()
+            .unwrap();
+        let mut data = generate_test_ids(1..=11);
+        let pager = filter.get_pager(&mut data);
+        assert_eq!(pager.prev, None);
+        assert_eq!(pager.next, Some(10));
+
+        let filter = filter.next_page(&pager).unwrap();
+        let sql = filter.to_sql().unwrap();
+        assert_eq!(sql, "SELECT * FROM rsvp.reservation WHERE status = 'pending'::rsvp.reservation_status AND id >= 10 AND resource_id = 'zz id' ORDER BY id ASC LIMIT 12");
+        let mut data = generate_test_ids(10..=20);
+        let pager = filter.get_pager(&mut data);
+        assert_eq!(pager.prev, Some(11));
+        assert_eq!(pager.next, None);
     }
 }

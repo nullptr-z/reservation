@@ -2,7 +2,7 @@ use crate::*;
 use sqlx::{postgres::PgPoolOptions, Either, Row};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
-use tracing::{info, log::trace, warn};
+use tracing::{info, warn};
 
 impl ReservationManager {
     // 接受一个sqlx::PgPool，将它包裹起来
@@ -155,7 +155,7 @@ impl Rsvp for ReservationManager {
         let rsvps: Vec<Reservation> = sqlx::query_as(&sql).fetch_all(&self.pool).await?;
         let mut rsvps = rsvps.into_iter().collect();
 
-        let pager = filter.get_pager(&mut rsvps)?;
+        let pager = filter.get_pager(&mut rsvps);
 
         Ok((pager, rsvps.into_iter().collect()))
     }
