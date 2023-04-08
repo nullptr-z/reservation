@@ -64,7 +64,7 @@ impl Paginator for PageInfo {
     }
 
     fn prev_page(&self, pager: &Pager) -> Option<Self> {
-        if pager.next.is_some() {
+        if pager.prev.is_some() {
             Some(PageInfo {
                 cursor: pager.prev,
                 page_size: self.page_size,
@@ -104,12 +104,21 @@ mod tests {
         assert!(pager.prev.is_none());
         assert_eq!(pager.next, Some(10));
 
+        {
+            let prev_page = page.prev_page(&pager);
+            assert!(prev_page.is_none());
+        }
+
         // second page
         let page = page.next_page(&pager).unwrap();
         let mut items: VecDeque<TestId> = (10..=21).map(|i| TestId(i)).collect();
         let pager = page.get_pager(&mut items);
         assert_eq!(pager.prev, Some(11));
         assert_eq!(pager.next, Some(20));
+        {
+            let prev_page = page.prev_page(&pager);
+            assert_eq!(prev_page.unwrap().cursor, Some(11));
+        }
 
         // third page
         let page = page.next_page(&pager).unwrap();
@@ -117,5 +126,9 @@ mod tests {
         let pager = page.get_pager(&mut items);
         assert_eq!(pager.prev, Some(21));
         assert!(pager.next.is_none());
+        {
+            let prev_page = page.prev_page(&pager);
+            assert_eq!(prev_page.unwrap().cursor, Some(21));
+        }
     }
 }
